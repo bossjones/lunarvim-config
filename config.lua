@@ -4,7 +4,40 @@
 -- Forum: https://www.reddit.com/r/lunarvim/
 -- Discord: https://discord.com/invite/Xb9B4Ny
 
--- Defaults from lvim
+-- TODO: Try these configs eventually
+-- -- Defaults from lvim
+-- lvim.log.level = "warn"
+-- lvim.format_on_save.enabled = false
+-- lvim.colorscheme = "lunar"
+-- lvim.leader = "space"
+-- lvim.keys.normal_mode["<C-s>"] = ":w<cr>"
+-- lvim.builtin.alpha.active = true
+-- lvim.builtin.alpha.mode = "dashboard"
+-- lvim.builtin.terminal.active = true
+-- lvim.builtin.nvimtree.setup.view.side = "left"
+-- lvim.builtin.nvimtree.setup.renderer.icons.show.git = false
+
+-- lvim.builtin.treesitter.ensure_installed = {
+--   "bash",
+--   "c",
+--   "javascript",
+--   "json",
+--   "lua",
+--   "python",
+--   "typescript",
+--   "tsx",
+--   "css",
+--   "rust",
+--   "yaml",
+-- }
+
+-- lvim.builtin.treesitter.ignore_install = { "haskell" }
+-- lvim.builtin.treesitter.highlight.enable = true
+
+-- -- Custom vim options
+-- vim.opt.relativenumber=true
+
+
 -- Neovim
 -- =========================================
 lvim.leader = " "
@@ -157,3 +190,37 @@ require("user.null_ls").config()
 -- -- Additional Keybindings
 -- -- =========================================
 -- require("user.keybindings").config()
+
+
+-- my custom
+lvim.builtin.treesitter.ensure_installed = {
+  "bash",
+  "c",
+  "javascript",
+  "json",
+  "lua",
+  "python",
+  "typescript",
+  "tsx",
+  "css",
+  "rust",
+  "yaml",
+  "awk",
+  "cmake",
+  "cpp",
+  "diff",
+  "dockerfile",
+  "gitattributes",
+  "gitcommit",
+  "git_config",
+  "gitignore",
+  "ini",
+  "make",
+  "passwd",
+  "rst",
+  "ruby",
+  "toml",
+}
+
+lvim.builtin.treesitter.ignore_install = { "haskell" }
+lvim.builtin.treesitter.highlight.enable = true
