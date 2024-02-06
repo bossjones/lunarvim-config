@@ -33,3 +33,15 @@ ubuntu: sync
 # # fix the address inside .vale.ini
 # 	cp -a ~/.config/lvim/vale_config.ini ~/.vale.ini
 
+ubuntu-64-bit:
+	sudo apt install luarocks -y
+	luarocks install luacheck
+	curl -L 'https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64' > ~/.local/bin/hadolint && \
+	chmod +x ~/.local/bin/hadolint && \
+	pip install vim-vint && \
+	npm install -g @fsouza/prettierd && \
+	pip install yapf flake8 black && \
+	wget https://github.com/errata-ai/vale/releases/download/v3.0.7/vale_3.0.7_Linux_64-bit.tar.gz -O vale.tar.gz && \
+	tar -xvzf vale.tar.gz -C ~/.local/bin && \
+	rm vale.tar.gz && \
+	npm install -g markdownlint-cli
