@@ -22,6 +22,7 @@ install_fnm() {
   npm install -g tree-sitter-cli
 }
 
+
 # SOURCE: https://rtx.pub/install.sh
 #region environment setup
 get_os() {
@@ -121,6 +122,23 @@ display_tarball_platform_underscore() {
 
   echo "${os}_${arch}"
 }
+
+
+install_dev_tools() {
+  if [ "$CURRENT_OS" != "macos" ]; then
+    os_name=$(cat /etc/os-release | grep -oP '^NAME="\K[^"]+')
+
+    if [ "${os_name}" = "Ubuntu" ]; then
+      sudo apt-get install build-essential cmake -y
+    elif [ "${os_name}" = "Centos" ]; then
+      sudo yum install cmake -y
+    fi
+  else
+    brew install cmake || true
+  fi
+}
+
+install_dev_tools
 
 ###################################################################################################################
 # if rustup script has been run and ~/.cargo/env exists
