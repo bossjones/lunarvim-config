@@ -167,18 +167,19 @@ fnm=$(command -v fnm 2>/dev/null) || fnm=$(dirname "$0")/fnm
 # If this is an arm64 workstation, let's compile neovim from source.
 ###################################################################################################################
 if [ "$(uname -m)" = "aarch64" ]; then
-  set +e
+  # set +e
   export CURRENT_VERSION_NEOVIM=0.9.1
   asdf uninstall neovim "${CURRENT_VERSION_NEOVIM}" || true
   git clone -b "v${CURRENT_VERSION_NEOVIM}" https://github.com/neovim/neovim ~/.local/src/neovim || true
   cd ~/.local/src/neovim || exit
   rm -rf build || true
+  set -euox pipefail
   export MANPREFIX=$HOME/.local
   make CMAKE_BUILD_TYPE=RelWithDebInfo CMAKE_INSTALL_PREFIX=~/.local CMAKE_INSTALL_MANDIR="$HOME"/.local
   make install
   asdf global neovim system
   nvim --version
-  set -e
+  set +euox pipefail
 else
   echo "not centos or aarch64. skipping"
 fi
