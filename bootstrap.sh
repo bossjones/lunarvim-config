@@ -6,6 +6,18 @@ if [ "$(id -u)" = "0" ]; then
     exit 1
 fi
 
+install_fnm() {
+  echo "Installing fnm"
+  curl -fsSL https://fnm.vercel.app/install | bash
+  exec "$SHELL" -l
+  eval "$(fnm env --use-on-cd)"
+  fnm install 16.13.1
+  fnm use 16.13.1
+  npm install -g @fsouza/prettierd
+  npm install -g markdownlint-cli
+  npm install -g docker-loghose
+  npm install -g tree-sitter-cli
+}
 
 # SOURCE: https://rtx.pub/install.sh
 #region environment setup
@@ -129,19 +141,6 @@ mkdir -p ~/.local/bin || true
 fnm=$(command -v fnm 2>/dev/null) || fnm=$(dirname "$0")/fnm
 [[ -x "$fnm" ]] || install_fnm
 
-
-install_fnm() {
-  echo "Installing fnm"
-  curl -fsSL https://fnm.vercel.app/install | bash
-  exec "$SHELL" -l
-  eval "$(fnm env --use-on-cd)"
-  fnm install 16.13.1
-  fnm use 16.13.1
-  npm install -g @fsouza/prettierd
-  npm install -g markdownlint-cli
-  npm install -g docker-loghose
-  npm install -g tree-sitter-cli
-}
 
 ###################################################################################################################
 # If this is an arm64 workstation, let's compile neovim from source.
