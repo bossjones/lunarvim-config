@@ -1,3 +1,12 @@
+# Usage
+
+```
+git clone https://github.com/bossjones/lunarvim-config.git
+cd lunarvim-config
+make bootstrap
+```
+
+
 # lunarvim-config
 My attempt to configure lunarvim correctly, this is a POC and will be moved to zsh-dotfiles
 
