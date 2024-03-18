@@ -9,8 +9,11 @@ fi
 install_fnm() {
   echo "Installing fnm"
   curl -fsSL https://fnm.vercel.app/install | bash
-  exec "$SHELL" -l
+  # exec "$SHELL" -l
+  # fnm
+  export PATH="/home/developer/.local/share/fnm:$PATH"
   eval "$(fnm env --use-on-cd)"
+  source /home/developer/.zshrc
   fnm install 16.13.1
   fnm use 16.13.1
   npm install -g @fsouza/prettierd
