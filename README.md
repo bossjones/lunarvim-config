@@ -410,6 +410,8 @@ Eval test cases for `/debug-ci` live in `.claude/commands/debug-ci/evals/evals.j
 To run evals with the Claude Code CLI:
 
 ```bash
+make evals
+# or directly:
 claude-code eval .claude/commands/debug-ci/evals/evals.json
 ```
 
