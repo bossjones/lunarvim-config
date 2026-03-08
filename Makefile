@@ -1,10 +1,20 @@
-.PHONY: help sync ubuntu ubuntu-64-bit macos-arm64 evals bootstrap doctor install uv-tool-install npm-tool-install
+.PHONY: help backup sync ubuntu ubuntu-64-bit macos-arm64 evals bootstrap doctor install uv-tool-install npm-tool-install
 
 help: ## Show this help message
 	@uv run python -c "import re; \
 	[[print(f'\033[36m{m[0]:<20}\033[0m {m[1]}') for m in re.findall(r'^([a-zA-Z0-9_-]+):.*?## (.*)$$', open(makefile).read(), re.M)] for makefile in ('$(MAKEFILE_LIST)').strip().split()]"
 
-sync: ## Sync config files from this repo to ~/.config/lvim/
+backup: ## Create a timestamped zip backup of ~/.config/lvim/
+	@if [ -d "$$HOME/.config/lvim" ]; then \
+		mkdir -p "$$HOME/.config/lvim-backups" && \
+		zip -r "$$HOME/.config/lvim-backups/lvim-backup-$$(date +%Y%m%d-%H%M%S).zip" "$$HOME/.config/lvim" \
+			-x "$$HOME/.config/lvim/.git/*" && \
+		echo "Backup saved to $$HOME/.config/lvim-backups/"; \
+	else \
+		echo "No ~/.config/lvim/ directory found — skipping backup."; \
+	fi
+
+sync: backup ## Sync config files from this repo to ~/.config/lvim/
 	cp -av Makefile ~/.config/lvim/
 	cp -av config.lua ~/.config/lvim/
 	cp -av lsp-settings ~/.config/lvim/
