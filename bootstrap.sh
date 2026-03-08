@@ -13,6 +13,7 @@ install_fnm() {
   # fnm
   export PATH="/home/developer/.local/share/fnm:$PATH"
   eval "$(fnm env --use-on-cd)"
+  # shellcheck disable=SC1091
   source /home/developer/.zshrc
   fnm install 16.13.1
   fnm use 16.13.1
@@ -63,7 +64,8 @@ display_tarball_platform_dash() {
   # https://en.wikipedia.org/wiki/Uname
 
   local os="unexpected_os"
-  local uname_a="$(uname -a)"
+  local uname_a
+  uname_a="$(uname -a)"
   case "${uname_a}" in
   Linux*) os="linux" ;;
   Darwin*) os="darwin" ;;
@@ -74,7 +76,8 @@ display_tarball_platform_dash() {
   esac
 
   local arch="unexpected_arch"
-  local uname_m="$(uname -m)"
+  local uname_m
+  uname_m="$(uname -m)"
   case "${uname_m}" in
   x86_64) arch=x64 ;;
   i386 | i686) arch="x86" ;;
@@ -95,7 +98,8 @@ display_tarball_platform_underscore() {
   # https://en.wikipedia.org/wiki/Uname
 
   local os="unexpected_os"
-  local uname_a="$(uname -a)"
+  local uname_a
+  uname_a="$(uname -a)"
   case "${uname_a}" in
   Linux*) os="linux" ;;
   Darwin*) os="darwin" ;;
@@ -106,7 +110,8 @@ display_tarball_platform_underscore() {
   esac
 
   local arch="unexpected_arch"
-  local uname_m="$(uname -m)"
+  local uname_m
+  uname_m="$(uname -m)"
   case "${uname_m}" in
   x86_64) arch=x64 ;;
   i386 | i686) arch="x86" ;;
@@ -126,7 +131,7 @@ display_tarball_platform_underscore() {
 
 install_dev_tools() {
   if [ "$CURRENT_OS" != "macos" ]; then
-    os_name=$(cat /etc/os-release | grep -oP '^NAME="\K[^"]+')
+    os_name=$(grep -oP '^NAME="\K[^"]+' /etc/os-release)
 
     if [ "${os_name}" = "Ubuntu" ]; then
       sudo apt-get install build-essential cmake -y
@@ -150,7 +155,7 @@ if [ -f ~/.cargo/env ]; then
   else
       echo "Path does not exist in PATH variable, exporting it now."
 
-      export PATH="~/.cargo/bin:$PATH"
+      export PATH="$HOME/.cargo/bin:$PATH"
 
   fi
 fi
@@ -189,8 +194,7 @@ fi
 # Make sure all of our base tools are installed
 ###################################################################################################################
 if [ "$CURRENT_OS" != "macos" ]; then
-  # shellcheck disable=SC2002 # Useless cat. Consider 'cmd < file | ..' or 'cmd file | ..' instead
-  os_name=$(cat /etc/os-release | grep -oP '^NAME="\K[^"]+')
+  os_name=$(grep -oP '^NAME="\K[^"]+' /etc/os-release)
   # Check if the operating system is Ubuntu
   if [ "${os_name}" = "Ubuntu" ]; then
     echo "The operating system is Ubuntu."

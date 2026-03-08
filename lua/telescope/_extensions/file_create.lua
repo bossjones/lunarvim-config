@@ -25,15 +25,15 @@ function _G.dump(...)
   print(unpack(objects))
 end
 
-local function clear_prompt()
+local function clear_prompt() -- luacheck: ignore
   vim.api.nvim_command "normal :esc<CR>"
 end
 
-local function get_user_input()
+local function get_user_input() -- luacheck: ignore
   return vim.fn.nr2char(vim.fn.getchar())
 end
 
-local function remove_dir(cwd)
+local function remove_dir(cwd) -- luacheck: ignore
   return vim.loop.fs_rmdir(cwd .. "/")
 end
 

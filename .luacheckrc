@@ -14,6 +14,8 @@ stds.nvim = {
     "WORKSPACE_PATH",
     "JAVA_LS_EXECUTABLE",
     "MUtils",
+    "get_cache_dir",
+    "join_paths",
     os = { fields = { "capture" } },
   },
   read_globals = {
@@ -34,4 +36,5 @@ cache = true
 ignore = {
   "631", -- max_line_length
   "212/_.*", -- unused argument, for vars with "_" prefix
+  "213/_.*", -- unused loop variable, for vars with "_" prefix
 }

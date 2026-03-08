@@ -467,8 +467,7 @@ M.config = function()
       local formatters = require "lvim.lsp.null-ls.formatters"
       local supported_formatters = {}
       for _, fmt in pairs(formatters.list_registered(buf_ft)) do
-        local _added_formatter = fmt
-        _added_formatter = string.sub(fmt, 1, 4)
+        local _added_formatter = string.sub(fmt, 1, 4)
         table.insert(supported_formatters, _added_formatter)
       end
       vim.list_extend(buf_client_names, supported_formatters)
@@ -477,8 +476,7 @@ M.config = function()
       local linters = require "lvim.lsp.null-ls.linters"
       local supported_linters = {}
       for _, lnt in pairs(linters.list_registered(buf_ft)) do
-        local _added_linter = lnt
-        _added_linter = string.sub(lnt, 1, 4)
+        local _added_linter = string.sub(lnt, 1, 4)
         table.insert(supported_linters, _added_linter)
       end
       vim.list_extend(buf_client_names, supported_linters)

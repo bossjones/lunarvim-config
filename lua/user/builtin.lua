@@ -3,13 +3,13 @@ local kind = require "user.lsp_kind"
 local cmp_ok, cmp = pcall(require, "cmp")
 if not cmp_ok or cmp == nil then
   cmp = {
-    mapping = function(...) end,
+    mapping = function() end,
     setup = {
-      filetype = function(...) end,
-      cmdline = function(...) end,
+      filetype = function() end,
+      cmdline = function() end,
     },
     config = {
-      sources = function(...) end,
+      sources = function() end,
     },
   }
 end

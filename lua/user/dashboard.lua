@@ -12,8 +12,8 @@ M.config = function()
     },
   }
 
-  local plugins = ""
   local date = os.date "%a %d %b"
+  local plugins
   if vim.fn.has "linux" == 1 or vim.fn.has "mac" == 1 then
     local handle = io.popen 'fd -d 2 . $HOME"/.local/share/lunarvim/site/pack/lazy" | grep pack | wc -l | tr -d "\n" '
     plugins = handle:read "*a"
@@ -25,7 +25,7 @@ M.config = function()
   end
   local minor_len = string.len(vim.version().minor)
   local empty_space = ""
-  for i = 1, minor_len do
+  for _i = 1, minor_len do
     empty_space = empty_space .. " "
   end
 

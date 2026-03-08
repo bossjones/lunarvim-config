@@ -8,7 +8,7 @@ local telescope_utils = require "telescope.utils"
 
 function M._multiopen(prompt_bufnr, open_cmd)
   local picker = action_state.get_current_picker(prompt_bufnr)
-  local num_selections = table.getn(picker:get_multi_selection())
+  local num_selections = #picker:get_multi_selection()
   local border_contents = picker.prompt_border.contents[1]
   if not (string.find(border_contents, "Find Files") or string.find(border_contents, "Git Files")) then
     actions.select_default(prompt_bufnr)

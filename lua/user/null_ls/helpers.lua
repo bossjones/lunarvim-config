@@ -62,6 +62,11 @@ M.make_code_action = function(opts)
             string.format("command %s is not executable (make sure it's installed and on your $PATH)", command)
           )
 
+          local content
+          if stdin then
+            content = table.concat(params.content, "\n")
+          end
+
           local client = vim.lsp.get_client_by_id(params.client_id)
           local spawn_opts = {
             cwd = client and client.config.root_dir or vim.fn.getcwd(),
@@ -69,10 +74,6 @@ M.make_code_action = function(opts)
             handler = handler,
             timeout = timeout,
           }
-          if stdin then
-            local content = table.concat(params.content, "\n")
-            spawn_opts["input"] = content
-          end
 
           loop.spawn(command, args, spawn_opts)
         end

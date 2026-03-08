@@ -164,7 +164,7 @@ M.config = function()
     firefoxExecutable = "/Applications/Firefox.app/Contents/MacOS/firefox"
   end
   local custom_adapter = "pwa-node-custom"
-  dap.adapters[custom_adapter] = function(cb, config)
+  dap.adapters[custom_adapter] = function(_cb, config)
     if config.preLaunchTask then
       local async = require "plenary.async"
       local notify = require("notify").async
@@ -377,15 +377,15 @@ M.config = function()
     program = "${file}",
     python = function() end,
     pythonPath = function()
-      local path
+      local python_path
       for _, server in pairs(vim.lsp.buf_get_clients()) do
         if server.name == "pyright" or server.name == "pylance" then
-          path = vim.tbl_get(server, "config", "settings", "python", "pythonPath")
+          python_path = vim.tbl_get(server, "config", "settings", "python", "pythonPath")
           break
         end
       end
-      path = vim.fn.input("Python path: ", path or "", "file")
-      return path ~= "" and vim.fn.expand(path) or nil
+      python_path = vim.fn.input("Python path: ", python_path or "", "file")
+      return python_path ~= "" and vim.fn.expand(python_path) or nil
     end,
     args = function()
       local args = {}
