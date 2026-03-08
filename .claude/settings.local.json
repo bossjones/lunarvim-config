@@ -9,7 +9,11 @@
       "Bash(luacheck .:*)",
       "Bash(shellcheck:*)",
       "Bash(command:*)",
-      "Bash(gh pr:*)"
+      "Bash(gh pr:*)",
+      "Bash(uv run:*)",
+      "Bash(make help:*)",
+      "Bash(make doctor:*)",
+      "WebFetch(domain:docs.astral.sh)"
     ]
   }
 }

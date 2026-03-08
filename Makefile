@@ -1,4 +1,10 @@
-sync:
+.PHONY: help sync ubuntu ubuntu-64-bit macos-arm64 evals bootstrap doctor install uv-tool-install npm-tool-install
+
+help: ## Show this help message
+	@uv run python -c "import re; \
+	[[print(f'\033[36m{m[0]:<20}\033[0m {m[1]}') for m in re.findall(r'^([a-zA-Z0-9_-]+):.*?## (.*)$$', open(makefile).read(), re.M)] for makefile in ('$(MAKEFILE_LIST)').strip().split()]"
+
+sync: ## Sync config files from this repo to ~/.config/lvim/
 	cp -av Makefile ~/.config/lvim/
 	cp -av config.lua ~/.config/lvim/
 	cp -av lsp-settings ~/.config/lvim/
@@ -17,7 +23,7 @@ sync:
 	cp -av .gitignore ~/.config/lvim/
 	cp -av LICENSE ~/.config/lvim/
 
-ubuntu:
+ubuntu: ## Install linters and formatters on Ubuntu (arm64)
 	sudo apt install luarocks -y
 	sudo luarocks install luacheck
 	curl -L 'https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-arm64' > ~/.local/bin/hadolint && \
@@ -29,11 +35,8 @@ ubuntu:
 	tar -xvzf vale.tar.gz -C ~/.local/bin && \
 	rm vale.tar.gz && \
 	npm install -g markdownlint-cli
-# 	cp -av ~/.config/lvim/.vale ~/.config/vale
-# # fix the address inside .vale.ini
-# 	cp -a ~/.config/lvim/vale_config.ini ~/.vale.ini
 
-ubuntu-64-bit:
+ubuntu-64-bit: ## Install linters and formatters on Ubuntu (x86_64)
 	sudo apt install luarocks -y
 	sudo luarocks install luacheck
 	curl -L 'https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64' > ~/.local/bin/hadolint && \
@@ -46,7 +49,7 @@ ubuntu-64-bit:
 	rm vale.tar.gz && \
 	npm install -g markdownlint-cli
 
-macos-arm64:
+macos-arm64: ## Install linters and formatters on macOS (Apple Silicon)
 	brew install luarocks
 # if you want to use luacheck
 	sudo luarocks install luacheck
@@ -80,8 +83,28 @@ macos-arm64:
 # luafilesystem
 #    1.8.0-1 (installed) - /opt/homebrew/lib/luarocks/rocks-5.4
 
-evals:
+evals: ## Run Claude Code evals
 	claude-code eval .claude/commands/debug-ci/evals/evals.json
 
-bootstrap:
+bootstrap: ## Full bootstrap (install LunarVim + dependencies)
 	./bootstrap.sh
+
+doctor: ## Check environment health (binaries, linters, LSP, configs)
+	@uv run script/doctor.py
+
+install: uv-tool-install npm-tool-install ## Install all Python and Node.js CLI tools
+
+uv-tool-install: ## Install Python CLI tools globally via uv tool
+	uv tool install autoflake
+	uv tool install autopep8
+	uv tool install black
+	uv tool install flake8
+	uv tool install isort
+	uv tool install pylint
+	uv tool install ruff
+	uv tool install vim-vint
+	uv tool install yapf
+
+npm-tool-install: ## Install Node.js CLI tools globally via npm
+	npm install -g @fsouza/prettierd
+	npm install -g markdownlint-cli
