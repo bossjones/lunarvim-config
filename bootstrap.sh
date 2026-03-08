@@ -13,6 +13,7 @@ install_fnm() {
   # fnm
   export PATH="/home/developer/.local/share/fnm:$PATH"
   eval "$(fnm env --use-on-cd)"
+  # shellcheck disable=SC1091
   source /home/developer/.zshrc
   fnm install 16.13.1
   fnm use 16.13.1
@@ -63,7 +64,8 @@ display_tarball_platform_dash() {
   # https://en.wikipedia.org/wiki/Uname
 
   local os="unexpected_os"
-  local uname_a="$(uname -a)"
+  local uname_a
+  uname_a="$(uname -a)"
   case "${uname_a}" in
   Linux*) os="linux" ;;
   Darwin*) os="darwin" ;;
@@ -74,7 +76,8 @@ display_tarball_platform_dash() {
   esac
 
   local arch="unexpected_arch"
-  local uname_m="$(uname -m)"
+  local uname_m
+  uname_m="$(uname -m)"
   case "${uname_m}" in
   x86_64) arch=x64 ;;
   i386 | i686) arch="x86" ;;
@@ -95,7 +98,8 @@ display_tarball_platform_underscore() {
   # https://en.wikipedia.org/wiki/Uname
 
   local os="unexpected_os"
-  local uname_a="$(uname -a)"
+  local uname_a
+  uname_a="$(uname -a)"
   case "${uname_a}" in
   Linux*) os="linux" ;;
   Darwin*) os="darwin" ;;
@@ -106,7 +110,8 @@ display_tarball_platform_underscore() {
   esac
 
   local arch="unexpected_arch"
-  local uname_m="$(uname -m)"
+  local uname_m
+  uname_m="$(uname -m)"
   case "${uname_m}" in
   x86_64) arch=x64 ;;
   i386 | i686) arch="x86" ;;
@@ -126,7 +131,7 @@ display_tarball_platform_underscore() {
 
 install_dev_tools() {
   if [ "$CURRENT_OS" != "macos" ]; then
-    os_name=$(cat /etc/os-release | grep -oP '^NAME="\K[^"]+')
+    os_name=$(grep -oP '^NAME="\K[^"]+' /etc/os-release)
 
     if [ "${os_name}" = "Ubuntu" ]; then
       sudo apt-get install build-essential cmake -y
@@ -150,7 +155,7 @@ if [ -f ~/.cargo/env ]; then
   else
       echo "Path does not exist in PATH variable, exporting it now."
 
-      export PATH="~/.cargo/bin:$PATH"
+      export PATH="$HOME/.cargo/bin:$PATH"
 
   fi
 fi
@@ -189,8 +194,7 @@ fi
 # Make sure all of our base tools are installed
 ###################################################################################################################
 if [ "$CURRENT_OS" != "macos" ]; then
-  # shellcheck disable=SC2002 # Useless cat. Consider 'cmd < file | ..' or 'cmd file | ..' instead
-  os_name=$(cat /etc/os-release | grep -oP '^NAME="\K[^"]+')
+  os_name=$(grep -oP '^NAME="\K[^"]+' /etc/os-release)
   # Check if the operating system is Ubuntu
   if [ "${os_name}" = "Ubuntu" ]; then
     echo "The operating system is Ubuntu."
@@ -222,130 +226,8 @@ fi
 
 LV_BRANCH='release-1.3/neovim-0.9' bash <(curl -s https://raw.githubusercontent.com/LunarVim/LunarVim/release-1.3/neovim-0.9/utils/installer/install.sh) --install-dependencies -y
 
-cat << EOF > ~/.config/lvim/config.lua
--- Read the docs: https://www.lunarvim.org/docs/configuration
--- Video Tutorials: https://www.youtube.com/watch?v=sFA9kX-Ud_c&list=PLhoH5vyxr6QqGu0i7tt_XoVK9v-KvZ3m6
--- Forum: https://www.reddit.com/r/lunarvim/
--- Discord: https://discord.com/invite/Xb9B4Ny
+# Install Mason packages (LSP servers, formatters, linters, DAP)
+~/.local/bin/lvim --headless +"MasonInstall pyright bash-language-server shellcheck shfmt ruff debugpy stylua lua-language-server" +q
 
--- TODO: Try these configs eventually
--- Defaults from lvim
-
--- SOURCE: https://github.com/LunarVim/starter.lvim/blob/python-ide/config.lua
--- install plugins
-lvim.plugins = {
-  "ChristianChiarulli/swenv.nvim",
-  "stevearc/dressing.nvim",
-  "mfussenegger/nvim-dap-python",
-  "nvim-neotest/nvim-nio",
-  "nvim-neotest/neotest",
-  "nvim-neotest/neotest-python",
-}
-
--- lvim.debug = false
--- vim.lsp.set_log_level "error"
--- lvim.log.level = "warn"
-
-lvim.log.level = "warn"
-lvim.format_on_save.enabled = false
-lvim.colorscheme = "lunar"
-lvim.leader = "space"
-lvim.keys.normal_mode["<C-s>"] = ":w<cr>"
-lvim.builtin.alpha.active = true
-lvim.builtin.alpha.mode = "dashboard"
-lvim.builtin.terminal.active = true
-lvim.builtin.nvimtree.setup.view.side = "left"
-lvim.builtin.nvimtree.setup.renderer.icons.show.git = false
-
--- automatically install python syntax highlighting
-lvim.builtin.treesitter.ensure_installed = {
-  "awk",
-  "bash",
-  "c",
-  "cmake",
-  "cpp",
-  "css",
-  "diff",
-  "dockerfile",
-  "git_config",
-  "gitattributes",
-  "gitcommit",
-  "gitignore",
-  "ini",
-  "javascript",
-  "json",
-  "lua",
-  "make",
-  "passwd",
-  "python",
-  "rst",
-  "ruby",
-  "rust",
-  "toml",
-  "tsx",
-  "typescript",
-  "yaml",
-}
-
-lvim.builtin.treesitter.ignore_install = { "haskell" }
-lvim.builtin.treesitter.highlight.enable = true
-
--- Custom vim options
--- vim.opt.relativenumber=true
-
--- setup formatting
-local formatters = require "lvim.lsp.null-ls.formatters"
-formatters.setup { { name = "black" }, }
-lvim.format_on_save.enabled = true
-lvim.format_on_save.pattern = { "*.py" }
-
--- setup linting
-local linters = require "lvim.lsp.null-ls.linters"
-linters.setup { { command = "flake8", filetypes = { "python" } } }
-
--- setup debug adapter
-lvim.builtin.dap.active = true
-local mason_path = vim.fn.glob(vim.fn.stdpath "data" .. "/mason/")
-pcall(function()
-  require("dap-python").setup(mason_path .. "packages/debugpy/venv/bin/python")
-end)
-
--- setup testing
-require("neotest").setup({
-  adapters = {
-    require("neotest-python")({
-      -- Extra arguments for nvim-dap configuration
-      -- See https://github.com/microsoft/debugpy/wiki/Debug-configuration-settings for values
-      dap = {
-        justMyCode = false,
-        console = "integratedTerminal",
-      },
-      args = { "--log-level", "DEBUG", "--quiet" },
-      runner = "pytest",
-    })
-  }
-})
-
-lvim.builtin.which_key.mappings["dm"] = { "<cmd>lua require('neotest').run.run()<cr>",
-  "Test Method" }
-lvim.builtin.which_key.mappings["dM"] = { "<cmd>lua require('neotest').run.run({strategy = 'dap'})<cr>",
-  "Test Method DAP" }
-lvim.builtin.which_key.mappings["df"] = {
-  "<cmd>lua require('neotest').run.run({vim.fn.expand('%')})<cr>", "Test Class" }
-lvim.builtin.which_key.mappings["dF"] = {
-  "<cmd>lua require('neotest').run.run({vim.fn.expand('%'), strategy = 'dap'})<cr>", "Test Class DAP" }
-lvim.builtin.which_key.mappings["dS"] = { "<cmd>lua require('neotest').summary.toggle()<cr>", "Test Summary" }
-
-
--- binding for switching
-lvim.builtin.which_key.mappings["C"] = {
-  name = "Python",
-  c = { "<cmd>lua require('swenv.api').pick_venv()<cr>", "Choose Env" },
-}
-
--- local formatters = require "lvim.lsp.null-ls.formatters"
--- formatters.setup { { name = "black" }}
-
--- local linters = require "lvim.lsp.null-ls.linters"
--- linters.setup { { command = "flake8", args = { "--ignore=E203" }, filetypes = { "python" } }}
-EOF
+# Sync config files from this repo to ~/.config/lvim/
+make sync

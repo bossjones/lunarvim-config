@@ -1,4 +1,4 @@
-local colors = require("tokyonight.colors").setup({ transform = true })
+local colors = require("tokyonight.colors").setup { transform = true }
 local config = require("tokyonight.config").options
 local bg_statusline = "#1a1b26"
 

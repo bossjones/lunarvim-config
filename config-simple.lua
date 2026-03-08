@@ -70,7 +70,7 @@ lvim.builtin.treesitter.highlight.enable = true
 
 -- setup formatting
 local formatters = require "lvim.lsp.null-ls.formatters"
-formatters.setup { { name = "black" }, }
+formatters.setup { { name = "black" } }
 lvim.format_on_save.enabled = true
 lvim.format_on_save.pattern = { "*.py" }
 
@@ -86,9 +86,9 @@ pcall(function()
 end)
 
 -- setup testing
-require("neotest").setup({
+require("neotest").setup {
   adapters = {
-    require("neotest-python")({
+    require "neotest-python" {
       -- Extra arguments for nvim-dap configuration
       -- See https://github.com/microsoft/debugpy/wiki/Debug-configuration-settings for values
       dap = {
@@ -97,20 +97,22 @@ require("neotest").setup({
       },
       args = { "--log-level", "DEBUG", "--quiet" },
       runner = "pytest",
-    })
-  }
-})
+    },
+  },
+}
 
-lvim.builtin.which_key.mappings["dm"] = { "<cmd>lua require('neotest').run.run()<cr>",
-  "Test Method" }
-lvim.builtin.which_key.mappings["dM"] = { "<cmd>lua require('neotest').run.run({strategy = 'dap'})<cr>",
-  "Test Method DAP" }
+lvim.builtin.which_key.mappings["dm"] = { "<cmd>lua require('neotest').run.run()<cr>", "Test Method" }
+lvim.builtin.which_key.mappings["dM"] =
+  { "<cmd>lua require('neotest').run.run({strategy = 'dap'})<cr>", "Test Method DAP" }
 lvim.builtin.which_key.mappings["df"] = {
-  "<cmd>lua require('neotest').run.run({vim.fn.expand('%')})<cr>", "Test Class" }
+  "<cmd>lua require('neotest').run.run({vim.fn.expand('%')})<cr>",
+  "Test Class",
+}
 lvim.builtin.which_key.mappings["dF"] = {
-  "<cmd>lua require('neotest').run.run({vim.fn.expand('%'), strategy = 'dap'})<cr>", "Test Class DAP" }
+  "<cmd>lua require('neotest').run.run({vim.fn.expand('%'), strategy = 'dap'})<cr>",
+  "Test Class DAP",
+}
 lvim.builtin.which_key.mappings["dS"] = { "<cmd>lua require('neotest').summary.toggle()<cr>", "Test Summary" }
-
 
 -- binding for switching
 lvim.builtin.which_key.mappings["C"] = {

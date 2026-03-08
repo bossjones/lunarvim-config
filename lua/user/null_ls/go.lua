@@ -42,14 +42,14 @@ M.gomodifytags = helpers.make_code_action {
       return
     end
     -- local tool = "gomodifytags"
-  --   local config = {
-  --     cmd = "./" .. tool,
+    --   local config = {
+    --     cmd = "./" .. tool,
 
-  --     install_script = [[
-  -- GOPATH=$(pwd) GOBIN=$(pwd) GO111MODULE=on go get -v github.com/fatih/gomodifytags
-  -- GOPATH=$(pwd) GO111MODULE=on go clean -modcache
-  -- ]],
-  --   }
+    --     install_script = [[
+    -- GOPATH=$(pwd) GOBIN=$(pwd) GO111MODULE=on go get -v github.com/fatih/gomodifytags
+    -- GOPATH=$(pwd) GO111MODULE=on go clean -modcache
+    -- ]],
+    --   }
     local command = "gomodifytags"
     local actions = {
       {

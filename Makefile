@@ -80,5 +80,8 @@ macos-arm64:
 # luafilesystem
 #    1.8.0-1 (installed) - /opt/homebrew/lib/luarocks/rocks-5.4
 
+evals:
+	claude-code eval .claude/commands/debug-ci/evals/evals.json
+
 bootstrap:
 	./bootstrap.sh

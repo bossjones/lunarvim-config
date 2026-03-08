@@ -1,19 +1,19 @@
-local telescope = require("telescope")
-local actions = require("telescope.actions")
-local finders = require("telescope.finders")
-local pickers = require("telescope.pickers")
-local action_state = require("telescope.actions.state")
-local Path = require("plenary.path")
+local telescope = require "telescope"
+local actions = require "telescope.actions"
+local finders = require "telescope.finders"
+local pickers = require "telescope.pickers"
+local action_state = require "telescope.actions.state"
+local Path = require "plenary.path"
 local os_sep = Path.path.sep
-local scan = require("plenary.scandir")
-local utils = require("telescope.utils")
+local scan = require "plenary.scandir"
+local utils = require "telescope.utils"
 -- local action_set = require("telescope.actions.set")
-local make_entry = require("telescope.make_entry")
+local make_entry = require "telescope.make_entry"
 local conf = require("telescope.config").values
 
 local folder_list = function()
   local list = {}
-  local p = io.popen("find . -type d")
+  local p = io.popen "find . -type d"
   for file in p:lines() do
     table.insert(list, file:sub(3))
   end
@@ -25,15 +25,15 @@ function _G.dump(...)
   print(unpack(objects))
 end
 
-local function clear_prompt()
-  vim.api.nvim_command("normal :esc<CR>")
+local function clear_prompt() -- luacheck: ignore
+  vim.api.nvim_command "normal :esc<CR>"
 end
 
-local function get_user_input()
+local function get_user_input() -- luacheck: ignore
   return vim.fn.nr2char(vim.fn.getchar())
 end
 
-local function remove_dir(cwd)
+local function remove_dir(cwd) -- luacheck: ignore
   return vim.loop.fs_rmdir(cwd .. "/")
 end
 
@@ -50,7 +50,7 @@ local file_create = function(opts)
       local data = {}
 
       if not vim.loop.fs_access(o.path, "X") then
-        print("You don't have access to this directory")
+        print "You don't have access to this directory"
         return nil
       end
 
@@ -77,11 +77,7 @@ local file_create = function(opts)
               hl_group = "Default"
             end
           else
-            display, hl_group = utils.transform_devicons(
-              entry.value,
-              display,
-              opts.disable_devicons
-            )
+            display, hl_group = utils.transform_devicons(entry.value, display, opts.disable_devicons)
           end
 
           if hl_group then
@@ -118,94 +114,93 @@ local file_create = function(opts)
         end
       end
 
-      return finders.new_table({ results = data, entry_maker = maker() })
+      return finders.new_table { results = data, entry_maker = maker() }
     end
 
-  pickers.new(opts, {
-    prompt_title = "Create file in",
-    results_title = "File Creation",
-    finder = finders.new_table({
-      results = results,
-      entry_maker = make_entry.gen_from_file(opts),
-    }),
-    previewer = conf.file_previewer(opts),
-    sorter = conf.file_sorter(opts),
-    attach_mappings = function(prompt_bufnr, map)
-      local get_marked_files = function()
-        local current_picker = action_state.get_current_picker(prompt_bufnr)
-        local multi_selected = current_picker:get_multi_selection()
-        local entries
+  pickers
+    .new(opts, {
+      prompt_title = "Create file in",
+      results_title = "File Creation",
+      finder = finders.new_table {
+        results = results,
+        entry_maker = make_entry.gen_from_file(opts),
+      },
+      previewer = conf.file_previewer(opts),
+      sorter = conf.file_sorter(opts),
+      attach_mappings = function(prompt_bufnr, map)
+        local get_marked_files = function()
+          local current_picker = action_state.get_current_picker(prompt_bufnr)
+          local multi_selected = current_picker:get_multi_selection()
+          local entries
 
-        if vim.tbl_isempty(multi_selected) then
-          entries = { action_state.get_selected_entry() }
-        else
-          entries = multi_selected
+          if vim.tbl_isempty(multi_selected) then
+            entries = { action_state.get_selected_entry() }
+          else
+            entries = multi_selected
+          end
+
+          local selected = vim.tbl_map(function(entry)
+            return Path:new(entry[1])
+          end, entries)
+
+          return selected
+        end
+        local create_new_file = function(bufnr)
+          local new_cwd = vim.fn.expand(action_state.get_selected_entry().path)
+          local fileName = vim.fn.input "File Name: "
+          if fileName == "" and not new_cwd then
+            print "To create a new file name or directory"
+            return
+          end
+          local result = new_cwd .. "/" .. fileName
+          actions.close(bufnr)
+          Path:new(result):touch { parents = true }
+          vim.cmd(string.format(":e %s", result))
         end
 
-        local selected = vim.tbl_map(function(entry)
-          return Path:new(entry[1])
-        end, entries)
+        local remove_file = function()
+          local current_picker = action_state.get_current_picker(prompt_bufnr)
+          local marked_files = get_marked_files()
 
-        return selected
-      end
-      local create_new_file = function(bufnr)
-        local new_cwd = vim.fn.expand(action_state.get_selected_entry().path)
-        local fileName = vim.fn.input("File Name: ")
-        if fileName == "" and not new_cwd then
-          print("To create a new file name or directory")
-          return
-        end
-        local result = new_cwd .. "/" .. fileName
-        actions.close(bufnr)
-        Path:new(result):touch({ parents = true })
-        vim.cmd(string.format(":e %s", result))
-      end
+          print "These files are going to be deleted:"
+          for _, file in ipairs(marked_files) do
+            print(file.filename)
+          end
 
-      local remove_file = function()
-        local current_picker = action_state.get_current_picker(prompt_bufnr)
-        local marked_files = get_marked_files()
+          local confirm =
+            vim.fn.confirm("You're about to perform a destructive action." .. " Proceed? [y/N]: ", "&Yes\n&No", "No")
 
-        print("These files are going to be deleted:")
-        for _, file in ipairs(marked_files) do
-          print(file.filename)
+          if confirm == 1 then
+            current_picker:delete_selection(function(entry)
+              local p = Path:new(entry[1])
+              p:rm { recursive = p:is_dir() }
+            end)
+            print "\nThe file has been removed!"
+            current_picker:reset_multi_selection()
+          end
         end
 
-        local confirm = vim.fn.confirm(
-          "You're about to perform a destructive action." .. " Proceed? [y/N]: ",
-          "&Yes\n&No",
-          "No"
-        )
-
-        if confirm == 1 then
-          current_picker:delete_selection(function(entry)
-            local p = Path:new(entry[1])
-            p:rm({ recursive = p:is_dir() })
-          end)
-          print("\nThe file has been removed!")
-          current_picker:reset_multi_selection()
+        local enter = function()
+          local current_picker = action_state.get_current_picker(prompt_bufnr)
+          local new_cwd = vim.fn.expand(action_state.get_selected_entry().path)
+          current_picker:refresh(
+            opts.new_finder {
+              path = new_cwd,
+            },
+            { reset_prompt = true }
+          )
         end
-      end
 
-      local enter = function()
-        local current_picker = action_state.get_current_picker(prompt_bufnr)
-        local new_cwd = vim.fn.expand(action_state.get_selected_entry().path)
-        current_picker:refresh(
-          opts.new_finder({
-            path = new_cwd,
-          }),
-          { reset_prompt = true }
-        )
-      end
-
-      map("i", "<CR>", enter)
-      map("n", "<CR>", enter)
-      map("i", "<C-e>", create_new_file)
-      map("n", "<C-e>", create_new_file)
-      map("i", "<C-d>", remove_file)
-      map("n", "<C-d>", remove_file)
-      return true
-    end,
-  }):find()
+        map("i", "<CR>", enter)
+        map("n", "<CR>", enter)
+        map("i", "<C-e>", create_new_file)
+        map("n", "<C-e>", create_new_file)
+        map("i", "<C-d>", remove_file)
+        map("n", "<C-d>", remove_file)
+        return true
+      end,
+    })
+    :find()
 end
 
-return telescope.register_extension({ exports = { file_create = file_create } })
+return telescope.register_extension { exports = { file_create = file_create } }
