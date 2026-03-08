@@ -373,6 +373,24 @@ This repo uses GitHub Actions (`.github/workflows/ci.yml`) with two jobs:
 - **Lint** — runs `luacheck`, `stylua --check`, `shellcheck`, and `markdownlint`
 - **LunarVim headless** — installs LunarVim and loads the config in headless mode
 
+### `/commit-push-pr` — Stage, Commit, Push, and Open a PR
+
+The `/commit-push-pr` command (defined in `.claude/commands/commit-push-pr.md`) automates the full git workflow from staged changes to an open pull request:
+
+1. **Inspect** — runs `git status` and `git diff` to understand what changed
+2. **Stage** — adds specific modified/untracked files (skips secrets like `.env`)
+3. **Commit** — generates a conventional commit message (`feat`, `fix`, `chore`, etc.) with a Co-Authored-By footer
+4. **Push** — pushes to remote, setting upstream (`-u`) if the branch is new
+5. **PR** — runs `gh pr create` with a Summary and Test plan body
+
+**Usage** (inside Claude Code):
+
+```text
+/commit-push-pr
+```
+
+**Prerequisites**: `gh` CLI authenticated (`gh auth login`).
+
 ### `/debug-ci` — Automated CI Failure Repair
 
 The `/debug-ci` command (defined in `.claude/commands/debug-ci.md`) is a Claude Code slash command that automates the full CI debugging loop:
