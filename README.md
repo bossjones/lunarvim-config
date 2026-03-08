@@ -1,17 +1,16 @@
 # Usage
 
-```
+```bash
 git clone https://github.com/bossjones/lunarvim-config.git
 cd lunarvim-config
 make bootstrap
 ```
 
+## lunarvim-config
 
-# lunarvim-config
 My attempt to configure lunarvim correctly, this is a POC and will be moved to zsh-dotfiles
 
-Inspired by https://github.com/abzcoding/lvim/tree/main
-
+Inspired by <https://github.com/abzcoding/lvim/tree/main>
 
 ## Structure
 
@@ -38,7 +37,6 @@ Inspired by https://github.com/abzcoding/lvim/tree/main
 - [snippets/](./snippets) - Personal code snippets
 
 </details>
-
 
 ## Custom Key-mappings
 
@@ -390,7 +388,7 @@ The command supports up to 3 outer retry cycles and guards against checking stal
 
 **Usage** (inside Claude Code):
 
-```
+```text
 /debug-ci
 /debug-ci <run-id>
 ```
@@ -402,7 +400,7 @@ The command supports up to 3 outer retry cycles and guards against checking stal
 Eval test cases for `/debug-ci` live in `.claude/commands/debug-ci/evals/evals.json`. There are three scenarios:
 
 | Test | Description |
-|------|-------------|
+| ------ | ------------- |
 | `luacheck_failure` | Injects an undefined global + unused variable, expects diagnosis and fix |
 | `stylua_formatting_drift` | Introduces bad indentation, expects `stylua .` auto-format |
 | `no_failures_clean_exit` | All runs green, expects early exit with no changes |
