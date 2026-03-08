@@ -1,4 +1,4 @@
-local util = require("lspconfig.util")
+local util = require "lspconfig.util"
 
 local root_files = {
   "pyproject.toml",
@@ -12,13 +12,11 @@ local root_files = {
 }
 
 local function get_root_dir(fname)
-  return util.root_pattern(unpack(root_files))(fname)
-    or util.root_pattern(".git")(fname)
-    or util.path.dirname(fname)
+  return util.root_pattern(unpack(root_files))(fname) or util.root_pattern ".git"(fname) or util.path.dirname(fname)
 end
 
 -- Detect uv's .venv in project root
-local root_dir = get_root_dir(vim.fn.expand("%:p"))
+local root_dir = get_root_dir(vim.fn.expand "%:p")
 local python_path = nil
 if root_dir then
   local venv = root_dir .. "/.venv"
