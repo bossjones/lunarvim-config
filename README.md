@@ -366,4 +366,53 @@ go build -o /usr/local/bin/gostructhelper && chmod 0755 /usr/local/bin/gostructh
 
 </details>
 
+## Developer
+
+### CI
+
+This repo uses GitHub Actions (`.github/workflows/ci.yml`) with two jobs:
+
+- **Lint** — runs `luacheck`, `stylua --check`, `shellcheck`, and `markdownlint`
+- **LunarVim headless** — installs LunarVim and loads the config in headless mode
+
+### `/debug-ci` — Automated CI Failure Repair
+
+The `/debug-ci` command (defined in `.claude/commands/debug-ci.md`) is a Claude Code slash command that automates the full CI debugging loop:
+
+1. **Diagnose** — finds the latest failed run via `gh`, downloads failed logs, categorizes failures
+2. **Plan** — maps each failure type to a fix strategy
+3. **Fix** — applies targeted edits (or runs `stylua .` for formatting)
+4. **Local validation** — runs the same lint checks CI runs, iterates up to 3 times
+5. **Commit & push** — stages specific files, uses conventional commit prefixes
+6. **Remote verification** — polls GitHub Actions by commit SHA until the new run completes
+
+The command supports up to 3 outer retry cycles and guards against checking stale runs.
+
+**Usage** (inside Claude Code):
+
+```
+/debug-ci
+/debug-ci <run-id>
+```
+
+**Prerequisites**: `gh` CLI authenticated, and ideally `luacheck`, `stylua`, `shellcheck`, and `markdownlint` installed locally for the validation phase.
+
+### Running Evals
+
+Eval test cases for `/debug-ci` live in `.claude/commands/debug-ci/evals/evals.json`. There are three scenarios:
+
+| Test | Description |
+|------|-------------|
+| `luacheck_failure` | Injects an undefined global + unused variable, expects diagnosis and fix |
+| `stylua_formatting_drift` | Introduces bad indentation, expects `stylua .` auto-format |
+| `no_failures_clean_exit` | All runs green, expects early exit with no changes |
+
+To run evals with the Claude Code CLI:
+
+```bash
+claude-code eval .claude/commands/debug-ci/evals/evals.json
+```
+
+Each test case defines `setup` commands (to inject failures), `teardown` commands (to restore files), and `expected_behaviors` that are checked against the command output.
+
 ---
