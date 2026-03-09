@@ -1,0 +1,96 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  install-doctor:
+    name: Install pipeline + doctor
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache LunarVim data
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/share/lunarvim
+            ~/.local/share/nvim
+            ~/.cache/nvim
+          key: lvim-install-${{ runner.os }}-${{ hashFiles('config.lua') }}
+          restore-keys: lvim-install-${{ runner.os }}-
+
+      - name: Install Neovim 0.9.5
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: v0.9.5
+
+      - name: Install LunarVim
+        run: |
+          LV_BRANCH='release-1.3/neovim-0.9' bash <(curl -s \
+            https://raw.githubusercontent.com/LunarVim/LunarVim/release-1.3/neovim-0.9/utils/installer/install.sh) \
+            --install-dependencies -y
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install luacheck
+        run: |
+          sudo apt-get install -y luarocks
+          sudo luarocks install luacheck
+
+      - name: Install Python tools
+        run: make uv-tool-install
+
+      - name: Install Node.js tools
+        run: make npm-tool-install
+
+      - name: Install Go tools
+        run: make go-tool-install
+
+      - name: Copy config files
+        run: make copy-configs
+
+      - name: Sync config
+        run: make sync
+
+      - name: Install Mason packages
+        run: make mason-tool-install
+        timeout-minutes: 5
+
+      - name: Run doctor
+        run: make doctor
+
+  plenary-tests:
+    name: Plenary unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Neovim 0.9.5
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: v0.9.5
+
+      - name: Cache plenary.nvim
+        uses: actions/cache@v4
+        with:
+          path: /tmp/plenary.nvim
+          key: plenary-${{ runner.os }}
+
+      - name: Clone plenary.nvim
+        run: |
+          if [ ! -d /tmp/plenary.nvim ]; then
+            git clone --depth 1 https://github.com/nvim-lua/plenary.nvim /tmp/plenary.nvim
+          fi
+
+      - name: Run plenary tests
+        run: |
+          nvim --headless -u tests/minimal_init.lua \
+            -c "PlenaryBustedDirectory tests/ {minimal_init = 'tests/minimal_init.lua', sequential = true}"

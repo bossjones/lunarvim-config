@@ -316,7 +316,6 @@ def check_mason_packages() -> list[CheckResult]:
         ("lua-language-server", Severity.RECOMMENDED),
         ("shellcheck", Severity.RECOMMENDED),
         ("shfmt", Severity.RECOMMENDED),
-        ("ruff", Severity.RECOMMENDED),
         ("debugpy", Severity.RECOMMENDED),
         ("stylua", Severity.RECOMMENDED),
     ]
@@ -326,7 +325,7 @@ def check_mason_packages() -> list[CheckResult]:
             results.append(CheckResult(
                 f"mason:{name}", Status.WARN, severity, category,
                 "Mason bin dir not found",
-                "Run: lvim --headless +\"MasonInstall pyright bash-language-server shellcheck shfmt ruff debugpy stylua lua-language-server\" +q",
+                "Run: lvim --headless +\"MasonInstall pyright bash-language-server shellcheck shfmt debugpy stylua lua-language-server\" +q",
             ))
         return results
 
