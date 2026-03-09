@@ -1,4 +1,4 @@
-local lsp_kind = require("user.lsp_kind")
+local lsp_kind = require "user.lsp_kind"
 
 describe("lsp_kind", function()
   describe("icons", function()

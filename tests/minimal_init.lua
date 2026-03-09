@@ -1,8 +1,8 @@
 -- Plenary test bootstrap for headless Neovim testing
 -- Add plenary and repo root to runtimepath
-local plenary_path = os.getenv("PLENARY_PATH") or "/tmp/plenary.nvim"
+local plenary_path = os.getenv "PLENARY_PATH" or "/tmp/plenary.nvim"
 vim.opt.runtimepath:append(plenary_path)
-vim.opt.runtimepath:append(".")
+vim.opt.runtimepath:append "."
 
 -- Minimal lvim mock so user modules that reference lvim don't crash on require
 _G.lvim = {
@@ -23,4 +23,4 @@ _G.lvim = {
   colorscheme = "lunar",
 }
 
-require("plenary.busted")
+require "plenary.busted"

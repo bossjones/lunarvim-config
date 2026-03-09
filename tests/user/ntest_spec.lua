@@ -1,4 +1,4 @@
-local ntest = require("user.ntest")
+local ntest = require "user.ntest"
 
 describe("ntest", function()
   describe("get_env", function()

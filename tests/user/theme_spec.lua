@@ -1,4 +1,4 @@
-local theme = require("user.theme")
+local theme = require "user.theme"
 
 describe("theme", function()
   describe("colors", function()
