@@ -64,31 +64,41 @@ describe("theme", function()
     end)
 
     it("returns rose_pine_colors between 1-9 AM", function()
-      os.date = function() return { hour = 5 } end
+      os.date = function()
+        return { hour = 5 }
+      end
       local colors = theme.current_colors()
       assert.are.equal(theme.colors.rose_pine_colors.bg, colors.bg)
     end)
 
     it("returns tokyonight_colors between 9 AM-5 PM", function()
-      os.date = function() return { hour = 12 } end
+      os.date = function()
+        return { hour = 12 }
+      end
       local colors = theme.current_colors()
       assert.are.equal(theme.colors.tokyonight_colors.bg, colors.bg)
     end)
 
     it("returns catppuccin_colors between 5-9 PM", function()
-      os.date = function() return { hour = 18 } end
+      os.date = function()
+        return { hour = 18 }
+      end
       local colors = theme.current_colors()
       assert.are.equal(theme.colors.catppuccin_colors.bg, colors.bg)
     end)
 
     it("returns kanagawa_colors between 9 PM-midnight", function()
-      os.date = function() return { hour = 22 } end
+      os.date = function()
+        return { hour = 22 }
+      end
       local colors = theme.current_colors()
       assert.are.equal(theme.colors.kanagawa_colors.bg, colors.bg)
     end)
 
     it("returned palette has bg, fg, and git", function()
-      os.date = function() return { hour = 12 } end
+      os.date = function()
+        return { hour = 12 }
+      end
       local colors = theme.current_colors()
       assert.is_not_nil(colors.bg)
       assert.is_not_nil(colors.fg)
