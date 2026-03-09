@@ -1,4 +1,4 @@
-.PHONY: help backup sync ubuntu ubuntu-64-bit macos-arm64 evals bootstrap doctor install uv-tool-install npm-tool-install
+.PHONY: help backup sync ubuntu ubuntu-64-bit macos-arm64 evals bootstrap doctor install uv-tool-install npm-tool-install brew-tool-install go-tool-install luarocks-tool-install copy-configs mason-tool-install test
 
 help: ## Show this help message
 	@uv run python -c "import re; \
@@ -102,7 +102,7 @@ bootstrap: ## Full bootstrap (install LunarVim + dependencies)
 doctor: ## Check environment health (binaries, linters, LSP, configs)
 	@uv run script/doctor.py
 
-install: uv-tool-install npm-tool-install ## Install all Python and Node.js CLI tools
+install: uv-tool-install npm-tool-install brew-tool-install go-tool-install luarocks-tool-install copy-configs mason-tool-install ## Install all tools, configs, and LSP servers
 
 uv-tool-install: ## Install Python CLI tools globally via uv tool
 	uv tool install autoflake
@@ -118,3 +118,24 @@ uv-tool-install: ## Install Python CLI tools globally via uv tool
 npm-tool-install: ## Install Node.js CLI tools globally via npm
 	npm install -g @fsouza/prettierd
 	npm install -g markdownlint-cli
+
+brew-tool-install: ## Install CLI tools via Homebrew (macOS)
+	brew install hadolint vale golangci-lint
+
+go-tool-install: ## Install Go CLI tools
+	go install golang.org/x/tools/cmd/goimports@latest
+	go install github.com/mgechev/revive@latest
+
+luarocks-tool-install: ## Install Lua linting tools via luarocks
+	luarocks install luacheck
+
+copy-configs: ## Copy config files (vale, etc.) to their expected locations
+	@cp -v vale_config.ini ~/.vale.ini
+	@mkdir -p ~/.config/vale && cp -v vale_config.ini ~/.config/vale/.vale.ini
+
+mason-tool-install: ## Install Mason LSP/tool packages via LunarVim
+	lvim --headless +"MasonInstall pyright bash-language-server shellcheck shfmt ruff debugpy stylua lua-language-server" +q
+
+test: ## Run Lua unit tests via plenary (headless)
+	nvim --headless -u tests/minimal_init.lua \
+		-c "PlenaryBustedDirectory tests/ {minimal_init = 'tests/minimal_init.lua', sequential = true}"
