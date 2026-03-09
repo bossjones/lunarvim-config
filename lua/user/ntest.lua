@@ -75,7 +75,7 @@ M.get_env = function()
     end
 
     for _, line in ipairs(vim.fn.readfile(file)) do
-      for name, value in string.gmatch(line, "(.+)=['\"]?(.*)['\"]?") do
+      for name, value in string.gmatch(line, "([^=]+)=['\"]?(.*)['\"]?") do
         local str_end = string.sub(value, -1, -1)
         if str_end == "'" or str_end == '"' then
           value = string.sub(value, 1, -2)

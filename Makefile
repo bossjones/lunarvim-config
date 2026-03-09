@@ -119,8 +119,12 @@ npm-tool-install: ## Install Node.js CLI tools globally via npm
 	npm install -g @fsouza/prettierd
 	npm install -g markdownlint-cli
 
-brew-tool-install: ## Install CLI tools via Homebrew (macOS)
-	brew install hadolint vale golangci-lint
+brew-tool-install: ## Install CLI tools via Homebrew (requires brew in PATH)
+	@if command -v brew >/dev/null 2>&1; then \
+		brew install hadolint vale golangci-lint; \
+	else \
+		echo "brew not found in PATH — skipping brew-tool-install (install Homebrew: https://brew.sh)"; \
+	fi
 
 go-tool-install: ## Install Go CLI tools
 	go install golang.org/x/tools/cmd/goimports@latest
@@ -131,10 +135,10 @@ luarocks-tool-install: ## Install Lua linting tools via luarocks
 
 copy-configs: ## Copy config files (vale, etc.) to their expected locations
 	@cp -v vale_config.ini ~/.vale.ini
-	@mkdir -p ~/.config/vale && cp -v vale_config.ini ~/.config/vale/.vale.ini
+	@mkdir -p ~/.config/vale/styles && cp -av .vale/* ~/.config/vale/styles/
 
 mason-tool-install: ## Install Mason LSP/tool packages via LunarVim
-	lvim --headless +"MasonInstall pyright bash-language-server shellcheck shfmt ruff debugpy stylua lua-language-server" +q
+	lvim --headless +"MasonInstall pyright bash-language-server shellcheck shfmt debugpy stylua lua-language-server" +q
 
 test: ## Run Lua unit tests via plenary (headless)
 	nvim --headless -u tests/minimal_init.lua \
