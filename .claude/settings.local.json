@@ -15,7 +15,9 @@
       "Bash(make doctor:*)",
       "WebFetch(domain:docs.astral.sh)",
       "Bash(wc:*)",
-      "Bash(nvim:*)"
+      "Bash(nvim:*)",
+      "WebFetch(domain:www.perplexity.ai)",
+      "Bash(grep:*)"
     ]
   }
 }

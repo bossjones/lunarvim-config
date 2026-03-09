@@ -9,6 +9,7 @@ local root_files = {
   "manage.py",
   "pyrightconfig.json",
   ".python-version",
+  "uv.lock",
 }
 
 local function get_root_dir(fname)
