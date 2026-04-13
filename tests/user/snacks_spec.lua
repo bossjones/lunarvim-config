@@ -48,7 +48,7 @@ describe("snacks", function()
 
   it("enables safe modules", function()
     assert.is_true(snacks_opts.bigfile.enabled)
-    assert.is_true(snacks_opts.notifier.enabled)
+    assert.is_false(snacks_opts.notifier.enabled) -- disabled: requires nvim 0.10+
     assert.is_true(snacks_opts.quickfile.enabled)
     assert.is_true(snacks_opts.statuscolumn.enabled)
     assert.is_true(snacks_opts.words.enabled)

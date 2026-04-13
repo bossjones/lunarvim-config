@@ -123,7 +123,7 @@ lvim.plugins = {
     opts = {
       -- Phase 1: non-conflicting modules
       bigfile = { enabled = true },
-      notifier = { enabled = true },
+      notifier = { enabled = false }, -- requires nvim 0.10+; Dockerfile pins 0.9.5
       quickfile = { enabled = true },
       statuscolumn = { enabled = true },
       words = { enabled = true },
@@ -193,9 +193,3 @@ lvim.builtin.which_key.mappings["C"] = {
   c = { "<cmd>lua require('swenv.api').pick_venv()<cr>", "Choose Env" },
 }
 
--- Snacks
-lvim.builtin.which_key.mappings["sn"] = {
-  name = "Snacks",
-  d = { "<cmd>lua Snacks.notifier.hide()<cr>", "Dismiss Notifications" },
-  h = { "<cmd>lua Snacks.notifier.show_history()<cr>", "Notification History" },
-}
