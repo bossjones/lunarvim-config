@@ -17,7 +17,13 @@
       "Bash(wc:*)",
       "Bash(nvim:*)",
       "WebFetch(domain:www.perplexity.ai)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(curl:*)",
+      "WebFetch(domain:github.com)",
+      "WebSearch",
+      "Bash(find:*)",
+      "Bash(luacheck:*)"
     ]
   }
 }
