@@ -1,0 +1,6 @@
+.git
+*.zip
+*.tar.gz
+.luacheckcache
+.vscode
+.claude

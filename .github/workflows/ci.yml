@@ -74,3 +74,22 @@ jobs:
         run: |
           ~/.local/bin/lvim --headless -c "lua print('config loaded ok')" -c "q"
         timeout-minutes: 3
+
+  docker-validate:
+    name: Docker config validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build validation image
+        run: docker build -t lunarvim-config:test .
+
+      - name: Test headless config load
+        run: docker run --rm lunarvim-config:test
+
+      - name: Test snacks.nvim loads
+        run: |
+          docker run --rm lunarvim-config:test \
+            /root/.local/bin/lvim --headless \
+            -c "lua print('snacks loaded: ' .. tostring(pcall(require, 'snacks')))" -c q

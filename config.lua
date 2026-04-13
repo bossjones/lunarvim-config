@@ -116,6 +116,27 @@ vim.filetype.add {
 -- Plugins
 -- =========================================
 lvim.plugins = {
+  {
+    "folke/snacks.nvim",
+    priority = 1000,
+    lazy = false,
+    opts = {
+      -- Phase 1: non-conflicting modules
+      bigfile = { enabled = true },
+      notifier = { enabled = true },
+      quickfile = { enabled = true },
+      statuscolumn = { enabled = true },
+      words = { enabled = true },
+      scroll = { enabled = true },
+      -- Phase 2: replace LunarVim built-ins (disabled for now)
+      dashboard = { enabled = false },
+      terminal = { enabled = false },
+      indent = { enabled = false },
+      dim = { enabled = false },
+      picker = { enabled = false },
+      explorer = { enabled = false },
+    },
+  },
   { "stevearc/dressing.nvim" },
   { "ChristianChiarulli/swenv.nvim" },
   { "mfussenegger/nvim-dap-python" },
@@ -170,4 +191,11 @@ lvim.builtin.which_key.mappings["dx"] = { "<cmd>lua require('neotest').run.stop(
 lvim.builtin.which_key.mappings["C"] = {
   name = "Python",
   c = { "<cmd>lua require('swenv.api').pick_venv()<cr>", "Choose Env" },
+}
+
+-- Snacks
+lvim.builtin.which_key.mappings["sn"] = {
+  name = "Snacks",
+  d = { "<cmd>lua Snacks.notifier.hide()<cr>", "Dismiss Notifications" },
+  h = { "<cmd>lua Snacks.notifier.show_history()<cr>", "Notification History" },
 }
