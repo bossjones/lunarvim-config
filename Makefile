@@ -1,4 +1,4 @@
-.PHONY: help backup sync ubuntu ubuntu-64-bit macos-arm64 evals bootstrap doctor install uv-tool-install npm-tool-install brew-tool-install go-tool-install luarocks-tool-install copy-configs mason-tool-install test
+.PHONY: help backup sync ubuntu ubuntu-64-bit macos-arm64 evals bootstrap doctor install uv-tool-install npm-tool-install brew-tool-install go-tool-install luarocks-tool-install copy-configs mason-tool-install test docker-build docker-test docker-lint docker-shell
 
 help: ## Show this help message
 	@uv run python -c "import re; \
@@ -143,3 +143,18 @@ mason-tool-install: ## Install Mason LSP/tool packages via LunarVim
 test: ## Run Lua unit tests via plenary (headless)
 	nvim --headless -u tests/minimal_init.lua \
 		-c "PlenaryBustedDirectory tests/ {minimal_init = 'tests/minimal_init.lua', sequential = true}"
+
+docker-build: ## Build Docker validation image
+	docker build -t lunarvim-config:test .
+
+docker-test: docker-build ## Build and run headless config validation in Docker
+	docker run --rm lunarvim-config:test
+	docker run --rm lunarvim-config:test /root/.local/bin/lvim --headless \
+		-c "lua print('snacks loaded: ' .. tostring(pcall(require, 'snacks')))" -c q
+	@echo "Docker validation passed."
+
+docker-lint: docker-build ## Run luacheck inside Docker
+	docker run --rm lunarvim-config:test luacheck . --globals lvim vim Snacks
+
+docker-shell: docker-build ## Open interactive shell in the Docker container
+	docker run --rm -it lunarvim-config:test /bin/bash

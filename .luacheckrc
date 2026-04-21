@@ -3,6 +3,7 @@
 stds.nvim = {
   globals = {
     "lvim",
+    "Snacks",
     vim = { fields = { "g" } },
     "CONFIG_PATH",
     "CACHE_PATH",

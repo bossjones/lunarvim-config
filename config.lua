@@ -116,6 +116,27 @@ vim.filetype.add {
 -- Plugins
 -- =========================================
 lvim.plugins = {
+  {
+    "folke/snacks.nvim",
+    priority = 1000,
+    lazy = false,
+    opts = {
+      -- Phase 1: non-conflicting modules
+      bigfile = { enabled = true },
+      notifier = { enabled = false }, -- requires nvim 0.10+; Dockerfile pins 0.9.5
+      quickfile = { enabled = true },
+      statuscolumn = { enabled = true },
+      words = { enabled = true },
+      scroll = { enabled = true },
+      -- Phase 2: replace LunarVim built-ins (disabled for now)
+      dashboard = { enabled = false },
+      terminal = { enabled = false },
+      indent = { enabled = false },
+      dim = { enabled = false },
+      picker = { enabled = false },
+      explorer = { enabled = false },
+    },
+  },
   { "stevearc/dressing.nvim" },
   { "ChristianChiarulli/swenv.nvim" },
   { "mfussenegger/nvim-dap-python" },
