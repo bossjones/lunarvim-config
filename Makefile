@@ -1,4 +1,4 @@
-.PHONY: help backup sync ubuntu ubuntu-64-bit macos-arm64 evals bootstrap doctor install uv-tool-install npm-tool-install brew-tool-install go-tool-install luarocks-tool-install copy-configs mason-tool-install test docker-build docker-test docker-lint docker-shell
+.PHONY: help backup sync deploy ubuntu ubuntu-64-bit macos-arm64 evals bootstrap doctor install uv-tool-install npm-tool-install brew-tool-install go-tool-install luarocks-tool-install copy-configs mason-tool-install test test-unit test-testinfra test-all docker-build docker-test docker-lint docker-shell
 
 help: ## Show this help message
 	@uv run python -c "import re; \
@@ -32,6 +32,9 @@ sync: backup ## Sync config files from this repo to ~/.config/lvim/
 	cp -av .stylua.toml ~/.config/lvim/
 	cp -av .gitignore ~/.config/lvim/
 	cp -av LICENSE ~/.config/lvim/
+
+deploy: ## Install config to ~/.config/lvim via the Python installer (make deploy ARGS=--dry-run)
+	@uv run script/install.py $(ARGS)
 
 ubuntu: ## Install linters and formatters on Ubuntu (arm64)
 	sudo apt install luarocks -y
@@ -105,6 +108,7 @@ doctor: ## Check environment health (binaries, linters, LSP, configs)
 install: uv-tool-install npm-tool-install brew-tool-install go-tool-install luarocks-tool-install copy-configs mason-tool-install ## Install all tools, configs, and LSP servers
 
 uv-tool-install: ## Install Python CLI tools globally via uv tool
+	uv tool install basedpyright
 	uv tool install autoflake
 	uv tool install autopep8
 	uv tool install black
@@ -143,6 +147,14 @@ mason-tool-install: ## Install Mason LSP/tool packages via LunarVim
 test: ## Run Lua unit tests via plenary (headless)
 	nvim --headless -u tests/minimal_init.lua \
 		-c "PlenaryBustedDirectory tests/ {minimal_init = 'tests/minimal_init.lua', sequential = true}"
+
+test-unit: ## Run fast Python unit tests (no Docker)
+	uv run pytest tests/unit -v
+
+test-testinfra: docker-build ## Run the testinfra suite against the Docker image
+	uv run pytest tests/testinfra -v
+
+test-all: test test-unit test-testinfra ## Run Lua plenary + Python unit + testinfra suites
 
 docker-build: ## Build Docker validation image
 	docker build -t lunarvim-config:test .

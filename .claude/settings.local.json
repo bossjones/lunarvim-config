@@ -23,7 +23,16 @@
       "WebFetch(domain:github.com)",
       "WebSearch",
       "Bash(find:*)",
-      "Bash(luacheck:*)"
+      "Bash(luacheck:*)",
+      "Bash(git commit:*)",
+      "Bash(make lint:*)",
+      "Bash(uv run basedpyright:*)",
+      "Bash(uv run ruff check:*)",
+      "Bash(grep:*)",
+      "Bash(uv run pytest:*)",
+      "Bash(git add:*)",
+      "Bash(make help:*)",
+      "Bash(make test:*)"
     ]
   }
 }

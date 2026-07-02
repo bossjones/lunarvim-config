@@ -58,39 +58,35 @@ lvim.builtin.treesitter.ensure_installed = {
   "html",
   "css",
   "sql",
-  "ssh_config",
   "query",
 }
 lvim.builtin.treesitter.highlight.enable = true
 
 -- LSP
 -- =========================================
--- Skip servers we manually configure (pyright in ftplugin/python.lua, bashls below)
-vim.list_extend(lvim.lsp.automatic_configuration.skipped_servers, { "pyright", "bashls" })
+-- Skip servers we manually configure (or don't want auto-installed):
+--   basedpyright + ruff -> ftplugin/python.lua, jsonls -> ftplugin/json.lua, bashls below.
+--   pyright is skipped so LunarVim doesn't auto-install it as a python fallback.
+vim.list_extend(
+  lvim.lsp.automatic_configuration.skipped_servers,
+  { "pyright", "basedpyright", "ruff", "bashls", "jsonls" }
+)
 
--- Formatters
+-- Formatters (null-ls / none-ls)
 -- =========================================
-local formatters = require "lvim.lsp.null-ls.formatters"
-formatters.setup {
-  { name = "ruff" },
-  { name = "shfmt", args = { "-i", "2", "-ci" } },
-  { name = "stylua" },
-}
-
--- Linters
--- =========================================
-local linters = require "lvim.lsp.null-ls.linters"
-linters.setup {
-  { name = "ruff" },
-  { name = "shellcheck" },
-}
-
--- Code actions
--- =========================================
-local code_actions = require "lvim.lsp.null-ls.code_actions"
-code_actions.setup {
-  { name = "shellcheck" },
-}
+-- Only shfmt + stylua go through null-ls: the none-ls fork moved ruff and
+-- shellcheck builtins out to none-ls-extras, so we handle those elsewhere —
+--   ruff       -> native ruff LSP server (ftplugin/python.lua)
+--   shellcheck -> bashls (shellcheckPath, configured below)
+-- Guarded with pcall so a missing null-ls during first-time bootstrap does NOT
+-- abort config load (which would stop `lvim.plugins` from registering).
+pcall(function()
+  local formatters = require "lvim.lsp.null-ls.formatters"
+  formatters.setup {
+    { name = "shfmt", args = { "-i", "2", "-ci" } },
+    { name = "stylua" },
+  }
+end)
 
 -- Bash LSP (hover, go-to-definition, completions for shell scripts)
 -- =========================================
@@ -112,6 +108,35 @@ vim.filetype.add {
     [".zprofile"] = "zsh",
   },
 }
+
+-- DevOps filetype detection (deterministic + testable). Neovim's builtin ftdetect
+-- already handles most of these, but declaring them explicitly makes behavior
+-- predictable and lets our tests assert on it.
+vim.filetype.add {
+  extension = {
+    plist = "xml",
+    service = "systemd",
+    timer = "systemd",
+    socket = "systemd",
+    mount = "systemd",
+    automount = "systemd",
+    target = "systemd",
+    path = "systemd",
+    slice = "systemd",
+    scope = "systemd",
+  },
+  pattern = {
+    [".*/%.ssh/config"] = "sshconfig",
+    [".*/ssh/ssh_config"] = "sshconfig",
+  },
+}
+
+-- Map devops filetypes to the `ini` treesitter parser for highlighting.
+-- The nvim-0.9 / LunarVim-1.3 treesitter pin has NO xml or ssh_config parsers,
+-- so XML/.plist and ~/.ssh/config fall back to Neovim's builtin syntax files
+-- (syntax/xml.vim, syntax/sshconfig.vim) — highlighting still works, no Java needed.
+pcall(vim.treesitter.language.register, "ini", "dosini")
+pcall(vim.treesitter.language.register, "ini", "systemd")
 
 -- Plugins
 -- =========================================
@@ -137,7 +162,14 @@ lvim.plugins = {
       explorer = { enabled = false },
     },
   },
+  -- LunarVim 1.3 pins `jose-elias-alvarez/null-ls.nvim`, but that repo was deleted
+  -- upstream (clone now fails). Disable the dead core spec and install its
+  -- maintained drop-in fork instead; none-ls ships the same `null-ls` Lua module,
+  -- so ruff/shfmt/stylua/shellcheck keep working via LunarVim's null-ls wrappers.
+  { "jose-elias-alvarez/null-ls.nvim", enabled = false },
+  { "nvimtools/none-ls.nvim", lazy = true, dependencies = { "nvim-lua/plenary.nvim" } },
   { "stevearc/dressing.nvim" },
+  { "b0o/schemastore.nvim" }, -- JSON/YAML schemas for jsonls/yamlls
   { "ChristianChiarulli/swenv.nvim" },
   { "mfussenegger/nvim-dap-python" },
   { "nvim-neotest/nvim-nio" },

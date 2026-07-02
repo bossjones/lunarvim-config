@@ -310,9 +310,19 @@ def check_mason_packages() -> list[CheckResult]:
 
     mason_bin = _mason_base() / "bin"
 
+    # (mason bin name, severity). Note some Mason packages install a binary
+    # whose name differs from the package name (json-lsp -> vscode-json-language-server,
+    # dockerfile-language-server -> docker-langserver).
+    mason_install = (
+        "bash-language-server yaml-language-server json-lsp taplo "
+        "dockerfile-language-server shellcheck shfmt debugpy stylua lua-language-server"
+    )
     packages: list[tuple[str, Severity]] = [
-        ("pyright", Severity.RECOMMENDED),
         ("bash-language-server", Severity.RECOMMENDED),
+        ("yaml-language-server", Severity.RECOMMENDED),
+        ("vscode-json-language-server", Severity.RECOMMENDED),
+        ("taplo", Severity.RECOMMENDED),
+        ("docker-langserver", Severity.RECOMMENDED),
         ("lua-language-server", Severity.RECOMMENDED),
         ("shellcheck", Severity.RECOMMENDED),
         ("shfmt", Severity.RECOMMENDED),
@@ -325,20 +335,29 @@ def check_mason_packages() -> list[CheckResult]:
             results.append(CheckResult(
                 f"mason:{name}", Status.WARN, severity, category,
                 "Mason bin dir not found",
-                "Run: lvim --headless +\"MasonInstall pyright bash-language-server shellcheck shfmt debugpy stylua lua-language-server\" +q",
+                f"Run: lvim --headless +\"MasonInstall {mason_install}\" +q",
             ))
-        return results
+    else:
+        for name, severity in packages:
+            bin_path = mason_bin / name
+            if bin_path.exists():
+                results.append(CheckResult(f"mason:{name}", Status.OK, severity, category, "installed"))
+            else:
+                results.append(CheckResult(
+                    f"mason:{name}", Status.WARN, severity, category,
+                    "not installed",
+                    f"lvim --headless +\"MasonInstall {name}\" +q",
+                ))
 
-    for name, severity in packages:
-        bin_path = mason_bin / name
-        if bin_path.exists():
-            results.append(CheckResult(f"mason:{name}", Status.OK, severity, category, "installed"))
-        else:
-            results.append(CheckResult(
-                f"mason:{name}", Status.WARN, severity, category,
-                "not installed",
-                f"lvim --headless +\"MasonInstall {name}\" +q",
-            ))
+    # basedpyright is the Python LSP, installed globally via `uv tool install`
+    # (not Mason), so it resolves on PATH rather than in the Mason bin dir.
+    if _has_bin("basedpyright"):
+        results.append(CheckResult("basedpyright", Status.OK, Severity.RECOMMENDED, category, "installed (uv tool)"))
+    else:
+        results.append(CheckResult(
+            "basedpyright", Status.WARN, Severity.RECOMMENDED, category,
+            "not found", "uv tool install basedpyright",
+        ))
 
     return results
 
