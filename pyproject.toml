@@ -1,0 +1,23 @@
+[project]
+name = "lunarvim-config-tests"
+version = "0.0.0"
+description = "testinfra suite validating the lunarvim-config Docker image"
+requires-python = ">=3.10"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-testinfra>=10",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/testinfra"]
+addopts = "-ra"
+
+[tool.basedpyright]
+# The testinfra suite is intentionally untyped; testinfra's Host API is dynamic.
+typeCheckingMode = "basic"
+reportUnknownMemberType = false
+reportUnknownParameterType = false
+reportMissingParameterType = false
+reportUntypedFunctionDecorator = false

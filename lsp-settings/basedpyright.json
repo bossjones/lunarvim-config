@@ -1,0 +1,6 @@
+{
+  "basedpyright.analysis.typeCheckingMode": "standard",
+  "basedpyright.analysis.autoSearchPaths": true,
+  "basedpyright.analysis.diagnosticMode": "openFilesOnly",
+  "basedpyright.analysis.useLibraryCodeForTypes": true
+}

@@ -1,4 +1,4 @@
-.PHONY: help backup sync ubuntu ubuntu-64-bit macos-arm64 evals bootstrap doctor install uv-tool-install npm-tool-install brew-tool-install go-tool-install luarocks-tool-install copy-configs mason-tool-install test docker-build docker-test docker-lint docker-shell
+.PHONY: help backup sync ubuntu ubuntu-64-bit macos-arm64 evals bootstrap doctor install uv-tool-install npm-tool-install brew-tool-install go-tool-install luarocks-tool-install copy-configs mason-tool-install test test-testinfra test-all docker-build docker-test docker-lint docker-shell
 
 help: ## Show this help message
 	@uv run python -c "import re; \
@@ -105,6 +105,7 @@ doctor: ## Check environment health (binaries, linters, LSP, configs)
 install: uv-tool-install npm-tool-install brew-tool-install go-tool-install luarocks-tool-install copy-configs mason-tool-install ## Install all tools, configs, and LSP servers
 
 uv-tool-install: ## Install Python CLI tools globally via uv tool
+	uv tool install basedpyright
 	uv tool install autoflake
 	uv tool install autopep8
 	uv tool install black
@@ -143,6 +144,11 @@ mason-tool-install: ## Install Mason LSP/tool packages via LunarVim
 test: ## Run Lua unit tests via plenary (headless)
 	nvim --headless -u tests/minimal_init.lua \
 		-c "PlenaryBustedDirectory tests/ {minimal_init = 'tests/minimal_init.lua', sequential = true}"
+
+test-testinfra: docker-build ## Run the testinfra suite against the Docker image
+	uv run pytest tests/testinfra -v
+
+test-all: test test-testinfra ## Run Lua plenary + Python testinfra suites
 
 docker-build: ## Build Docker validation image
 	docker build -t lunarvim-config:test .

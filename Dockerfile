@@ -62,12 +62,47 @@ RUN for item in Makefile config.lua lsp-settings ftplugin README.md after .vale 
       [ -e "$item" ] && cp -a "$item" /root/.config/lvim/; \
     done
 
-# Install plugins headlessly
-RUN /root/.local/bin/lvim --headless "+Lazy! sync" +qa 2>&1 || true
+# Install plugins headlessly.
+# 1. LunarVim 1.3's first-time setup leaves a dead `null-ls.nvim.cloning` behind
+#    (the pinned jose-elias-alvarez/null-ls.nvim repo was deleted upstream); config.lua
+#    disables it and installs the nvimtools/none-ls fork instead. Remove the stale
+#    half-clone so the plugin dir is clean.
+# 2. `Lazy! sync` alone does NOT block until clones finish under headless nvim, leaving
+#    plugins (snacks, none-ls, neotest, ...) half-installed. `sync{wait=true}` blocks
+#    until every clone/build completes, making the image a faithful test target.
+RUN LAZY_OPT=/root/.local/share/lunarvim/site/pack/lazy/opt; \
+    find "$LAZY_OPT" -maxdepth 1 -name '*.cloning' -exec rm -rf {} + 2>/dev/null || true; \
+    /root/.local/bin/lvim --headless \
+    -c "lua require('lazy').sync({ wait = true, show = false })" -c "qa" 2>&1 || true
 
-# Install Mason packages
+# Install Python LSP/CLI tools globally via uv (uv/uvx copied in above).
+# basedpyright is the Python LSP (types); ruff runs as its own LSP (`ruff server`)
+# for lint + format. Both configured in ftplugin/python.lua.
+RUN uv tool install basedpyright && uv tool install ruff
+
+# Install Mason packages (non-Python LSP servers + shell/lua tooling).
+# Every server referenced by an ftplugin is installed here so the image is a
+# faithful test target for the testinfra suite.
 RUN /root/.local/bin/lvim --headless \
-    +"MasonInstall pyright bash-language-server shellcheck shfmt debugpy stylua lua-language-server" +q 2>&1 \
+    +"MasonInstall bash-language-server yaml-language-server json-lsp taplo dockerfile-language-server shellcheck shfmt debugpy stylua lua-language-server" +q 2>&1 \
+    || true
+
+# Regenerate LunarVim's per-filetype LSP templates against the SYNCED config.
+# LunarVim generates them during install with its default skip list (which does
+# NOT skip pyright), baking a python template that auto-installs+attaches pyright.
+# Regenerating with our config (pyright skipped) drops it, so only the uv-installed
+# basedpyright + ruff (set up in ftplugin/python.lua) attach.
+RUN /root/.local/bin/lvim --headless \
+    -c "lua require('lvim.lsp.templates').remove_template_files()" \
+    -c "lua require('lvim.lsp.templates').generate_templates()" -c "qa" 2>&1 \
+    || true
+
+# Pre-compile treesitter parsers headlessly (compiled with cc). Only parsers that
+# exist in the pinned nvim-treesitter are listed — xml and ssh_config are NOT
+# available on the nvim-0.9 pin, so XML/.plist and ~/.ssh/config use Neovim's
+# builtin syntax highlighting instead (no parser needed).
+RUN /root/.local/bin/lvim --headless \
+    +"TSInstallSync bash python lua json jsonc yaml toml ini dockerfile" +qa 2>&1 \
     || true
 
 # Default: run headless config load test
