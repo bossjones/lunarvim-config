@@ -4,3 +4,10 @@
 .luacheckcache
 .vscode
 .claude
+.venv
+.pytest_cache
+logs
+.github
+tests
+specs
+.DS_Store
