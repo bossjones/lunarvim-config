@@ -32,9 +32,10 @@ git clone https://github.com/bossjones/lunarvim-config.git
 cd lunarvim-config
 
 # 1. Install LunarVim itself (release-1.3/neovim-0.9 branch), if not already installed:
-LV_BRANCH='release-1.3/neovim-0.9' bash <(curl -s \
-  https://raw.githubusercontent.com/LunarVim/LunarVim/release-1.3/neovim-0.9/utils/installer/install.sh) \
-  --install-dependencies -y
+curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+  https://raw.githubusercontent.com/LunarVim/LunarVim/release-1.3/neovim-0.9/utils/installer/install.sh \
+  -o /tmp/lvim-install.sh
+LV_BRANCH='release-1.3/neovim-0.9' bash /tmp/lvim-install.sh --install-dependencies -y
 
 # 2. Deploy this config to ~/.config/lvim (zip-backs-up + moves the old config aside).
 #    Preview the diff first, then apply:

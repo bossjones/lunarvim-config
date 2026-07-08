@@ -43,7 +43,8 @@ RUN pip3 install pynvim \
 
 # Install LunarVim (deps already installed above)
 RUN mkdir -p /root/.local/bin \
-    && curl -s https://raw.githubusercontent.com/LunarVim/LunarVim/release-1.3/neovim-0.9/utils/installer/install.sh \
+    && curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+       https://raw.githubusercontent.com/LunarVim/LunarVim/release-1.3/neovim-0.9/utils/installer/install.sh \
        -o /tmp/install-lvim.sh \
     && LV_BRANCH='release-1.3/neovim-0.9' bash /tmp/install-lvim.sh -y \
     && rm /tmp/install-lvim.sh
