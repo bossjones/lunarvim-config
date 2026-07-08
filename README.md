@@ -216,7 +216,7 @@ Note that,
 | <kbd>Space</kbd>+<kbd>F</kbd>+<kbd>i</kbd> |  𝐍   | Installed plugins          |
 | <kbd>Space</kbd>+<kbd>F</kbd>+<kbd>p</kbd> |  𝐍   | Project search             |
 | <kbd>Space</kbd>+<kbd>F</kbd>+<kbd>i</kbd> |  𝐍   | Installed plugins          |
-| **in _Telescope_ window**                  |      |                            |
+| **in *Telescope* window**                  |      |                            |
 | <kbd>CR</kbd>                              | 𝐈 𝐍  | Multi/Single Open          |
 | <kbd>Ctrl</kbd>+<kbd>c</kbd>               | 𝐈 𝐍  | Exit telescope             |
 | <kbd>Ctrl</kbd>+<kbd>v</kbd>               | 𝐈 𝐍  | Open in a vertical split   |
