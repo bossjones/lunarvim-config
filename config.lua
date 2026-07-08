@@ -1,6 +1,27 @@
 -- LunarVim Configuration: Python + Shell focused
 -- =========================================
 
+-- Treesitter query compat shim
+-- =========================================
+-- LunarVim 1.3 pins a 2023-era nvim-treesitter (see lazy-lock.json) that
+-- unconditionally registers the `has-ancestor?`/`has-parent?` predicates and
+-- the `trim!` directive. Neovim 0.10+ ships those natively, and its
+-- vim.treesitter.query.add_predicate/add_directive now hard-error instead of
+-- silently overriding when force isn't set, which crashes nvim-treesitter's
+-- module load on every BufReadPre. Default force=true so re-registration is
+-- silent again, matching pre-0.10 behavior. Must run before any plugin
+-- (including nvim-treesitter, lazy-loaded on BufReadPre) can call these.
+for _, fn_name in ipairs { "add_predicate", "add_directive" } do
+  local orig = vim.treesitter.query[fn_name]
+  vim.treesitter.query[fn_name] = function(name, handler, opts)
+    opts = opts or {}
+    if opts.force == nil then
+      opts.force = true
+    end
+    return orig(name, handler, opts)
+  end
+end
+
 -- Core settings
 -- =========================================
 lvim.leader = "space"
