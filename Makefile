@@ -41,9 +41,11 @@ ubuntu: ## Install linters and formatters on Ubuntu (arm64)
 	sudo luarocks install luacheck
 	curl -L 'https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-arm64' > ~/.local/bin/hadolint && \
 	chmod +x ~/.local/bin/hadolint && \
-	pip install vim-vint && \
+	uv tool install vim-vint && \
 	npm install -g @fsouza/prettierd && \
-	pip install yapf flake8 black && \
+	uv tool install yapf && \
+	uv tool install flake8 && \
+	uv tool install black && \
 	wget https://github.com/errata-ai/vale/releases/download/v2.26.0/vale_2.26.0_Linux_arm64.tar.gz -O vale.tar.gz && \
 	tar -xvzf vale.tar.gz -C ~/.local/bin && \
 	rm vale.tar.gz && \
@@ -54,9 +56,11 @@ ubuntu-64-bit: ## Install linters and formatters on Ubuntu (x86_64)
 	sudo luarocks install luacheck
 	curl -L 'https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64' > ~/.local/bin/hadolint && \
 	chmod +x ~/.local/bin/hadolint && \
-	pip install vim-vint && \
+	uv tool install vim-vint && \
 	npm install -g @fsouza/prettierd && \
-	pip install yapf flake8 black && \
+	uv tool install yapf && \
+	uv tool install flake8 && \
+	uv tool install black && \
 	wget https://github.com/errata-ai/vale/releases/download/v3.0.7/vale_3.0.7_Linux_64-bit.tar.gz -O vale.tar.gz && \
 	tar -xvzf vale.tar.gz -C ~/.local/bin && \
 	rm vale.tar.gz && \
@@ -71,12 +75,22 @@ macos-arm64: ## Install linters and formatters on macOS (Apple Silicon)
 # if you want to lint dockerfiles
 	brew install hadolint
 # for vim linting
-	pip install vim-vint
+	uv tool install vim-vint
 # install llvm and clang_format for clang stuff
 # if you want to use prettierd
 	npm install -g @fsouza/prettierd
 # for python stuff
-	pip install autoflake autopep8 better_exceptions black bpython flake8 isort pylint rich ruff yapf
+	uv tool install autoflake
+	uv tool install autopep8
+	uv tool install better_exceptions
+	uv tool install black
+	uv tool install bpython
+	uv tool install flake8
+	uv tool install isort
+	uv tool install pylint
+	uv tool install rich
+	uv tool install ruff
+	uv tool install yapf
 # if you want to use the markdown thingy
 	brew install vale markdownlint-cli
 
@@ -131,8 +145,8 @@ brew-tool-install: ## Install CLI tools via Homebrew (requires brew in PATH)
 	fi
 
 go-tool-install: ## Install Go CLI tools
-	go install golang.org/x/tools/cmd/goimports@latest
-	go install github.com/mgechev/revive@latest
+	GOBIN="$$(go env GOPATH)/bin" go install golang.org/x/tools/cmd/goimports@latest
+	GOBIN="$$(go env GOPATH)/bin" go install github.com/mgechev/revive@latest
 
 luarocks-tool-install: ## Install Lua linting tools via luarocks
 	luarocks install luacheck
@@ -142,7 +156,7 @@ copy-configs: ## Copy config files (vale, etc.) to their expected locations
 	@mkdir -p ~/.config/vale/styles && cp -av .vale/* ~/.config/vale/styles/
 
 mason-tool-install: ## Install Mason LSP/tool packages via LunarVim
-	lvim --headless +"MasonInstall pyright bash-language-server shellcheck shfmt debugpy stylua lua-language-server" +q
+	lvim --headless +"MasonInstall pyright bash-language-server yaml-language-server json-lsp taplo dockerfile-language-server shellcheck shfmt debugpy stylua lua-language-server" +q
 
 test: ## Run Lua unit tests via plenary (headless)
 	nvim --headless -u tests/minimal_init.lua \
