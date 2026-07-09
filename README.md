@@ -1,16 +1,70 @@
-# Usage
+# lunarvim-config
+
+A highly customized [LunarVim](https://www.lunarvim.org/) setup (built on the
+`release-1.3/neovim-0.9` branch) that deploys to `~/.config/lvim/`.
+
+Inspired by <https://github.com/abzcoding/lvim/tree/main>
+
+## macOS Quick Start (Apple Silicon)
+
+### Prerequisites
+
+Per the [LunarVim install docs](https://www.lunarvim.org/docs/installation), you need
+**Neovim v0.9.0+**, plus Git, Make, Python/pip, Node/npm, Cargo, and Ripgrep.
+
+> **Neovim 0.9.0+ is a minimum, not a ceiling.** LunarVim 1.3 only *locks new installs to
+> nvim 0.9+* — newer Neovim (0.10 / 0.11) works too. This config is used daily on 0.11.x.
+> The few 0.9-specific bits (e.g. the snacks notifier in `config.lua`) are *defensively
+> disabled* on newer Neovim rather than being hard failures.
+
+[Homebrew](https://brew.sh) is the easiest way to get the prerequisites on macOS:
+
+```bash
+brew install neovim git make node ripgrep luarocks hadolint vale golangci-lint
+# uv — the Python tool runner the Makefile uses: https://docs.astral.sh/uv/
+# cargo (Rust), only if you want `selene`: https://rustup.rs
+```
+
+### Install
 
 ```bash
 git clone https://github.com/bossjones/lunarvim-config.git
 cd lunarvim-config
-make bootstrap
+
+# 1. Install LunarVim itself (release-1.3/neovim-0.9 branch), if not already installed:
+curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+  https://raw.githubusercontent.com/LunarVim/LunarVim/release-1.3/neovim-0.9/utils/installer/install.sh \
+  -o /tmp/lvim-install.sh
+LV_BRANCH='release-1.3/neovim-0.9' bash /tmp/lvim-install.sh --install-dependencies -y
+
+# 2. Deploy this config to ~/.config/lvim (zip-backs-up + moves the old config aside).
+#    Preview the diff first, then apply:
+make deploy ARGS=--dry-run
+make deploy
+
+# 3. Install linters, formatters, and LSP servers
+#    (uv + npm + brew + go + luarocks + Mason; no sudo, brew step is skipped if absent):
+make install
+
+# 4. Verify the environment, then launch:
+make doctor
+lvim
 ```
 
-## lunarvim-config
+### Notes on the commands
 
-My attempt to configure lunarvim correctly, this is a POC and will be moved to zsh-dotfiles
+- **`make deploy`** (backend: `script/install.py`) backs up + moves the old config aside +
+  copies the payload, and supports `--dry-run`. Prefer it over `make sync`, which is a plain
+  `cp -av` that overwrites in place (and even copies `.git`).
+- **`make install`** uses `uv tool` (no global `pip`, no `sudo luarocks`) and guards the brew
+  step — it's the portable successor to `make macos-arm64`, which still exists as a legacy
+  one-shot (uses `sudo luarocks install luacheck`, `cargo install selene`, and global `pip`).
+- **`make bootstrap` (`./bootstrap.sh`) is *not* recommended on macOS.** Its Neovim-from-source
+  step is gated to Linux (`uname -m` = `aarch64`; Apple Silicon reports `arm64`), so it never
+  installs Neovim on a Mac, and its `fnm` bootstrap has hard-coded Linux `/home/developer`
+  paths. Use the steps above instead.
 
-Inspired by <https://github.com/abzcoding/lvim/tree/main>
+Run `make help` to see all available targets.
 
 ## Structure
 
@@ -162,7 +216,7 @@ Note that,
 | <kbd>Space</kbd>+<kbd>F</kbd>+<kbd>i</kbd> |  𝐍   | Installed plugins          |
 | <kbd>Space</kbd>+<kbd>F</kbd>+<kbd>p</kbd> |  𝐍   | Project search             |
 | <kbd>Space</kbd>+<kbd>F</kbd>+<kbd>i</kbd> |  𝐍   | Installed plugins          |
-| **in _Telescope_ window**                  |      |                            |
+| **in *Telescope* window**                  |      |                            |
 | <kbd>CR</kbd>                              | 𝐈 𝐍  | Multi/Single Open          |
 | <kbd>Ctrl</kbd>+<kbd>c</kbd>               | 𝐈 𝐍  | Exit telescope             |
 | <kbd>Ctrl</kbd>+<kbd>v</kbd>               | 𝐈 𝐍  | Open in a vertical split   |
@@ -327,26 +381,32 @@ Note that,
 
 </details>
 
-### Recommended Linters
+### Linters & Formatters
 
-You can use [mason](mason) to install these:
+The canonical way to install every linter, formatter, and LSP server is a single target — it
+chains `uv` (Python), `npm`, `brew`, `go`, `luarocks`, the Vale config copy, and Mason:
 
 ```shell
-brew install luarocks
-luarocks install luacheck  # if you want to use luacheck
-cargo install selene  # if you want to use selene instead of luacheck
-brew install hadolint  # if you want to lint dockerfiles
-pip install vim-vint  # for vim linting
-# install llvm and clang_format for clang stuff
-npm install -g @fsouza/prettierd # if you want to use prettierd
-pip install yapf flake8 black  # for python stuff
-# if you want to use the markdown thingy
-brew install vale markdownlint-cli
-cp vale_config.ini ~/.vale.ini
-make copy-configs
-# if you want the latex stuff
-# brew install --cask mactex-no-gui # for mac
-# or install zathura and chktex on linux
+make install
+```
+
+`make install` also handles the Vale config (`vale_config.ini` → `~/.vale.ini` plus
+`~/.config/vale/styles/`) via its `copy-configs` sub-target — no manual copy needed.
+
+The legacy one-shot installer still exists if you prefer it (uses `sudo luarocks`,
+`cargo install selene`, and global `pip`):
+
+```shell
+make macos-arm64   # macOS (Apple Silicon)
+make ubuntu        # Ubuntu (arm64)
+make ubuntu-64-bit # Ubuntu (x86_64)
+```
+
+For LaTeX support:
+
+```shell
+# brew install --cask mactex-no-gui  # macOS
+# or install zathura and chktex on Linux
 ```
 
 In case you want a better tex support in mac, check

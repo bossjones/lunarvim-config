@@ -1,13 +1,62 @@
 -- LunarVim Configuration: Python + Shell focused
 -- =========================================
 
+-- Treesitter query compat shim
+-- =========================================
+-- LunarVim 1.3 pins a 2023-era nvim-treesitter (see lazy-lock.json) that
+-- unconditionally registers the `has-ancestor?`/`has-parent?` predicates and
+-- the `trim!` directive. Neovim 0.10+ ships those natively, and its
+-- vim.treesitter.query.add_predicate/add_directive now hard-error instead of
+-- silently overriding when force isn't set, which crashes nvim-treesitter's
+-- module load on every BufReadPre. Default force=true so re-registration is
+-- silent again, matching pre-0.10 behavior. Must run before any plugin
+-- (including nvim-treesitter, lazy-loaded on BufReadPre) can call these.
+for _, fn_name in ipairs { "add_predicate", "add_directive" } do
+  local orig = vim.treesitter.query[fn_name]
+  vim.treesitter.query[fn_name] = function(name, handler, opts)
+    opts = opts or {}
+    if opts.force == nil then
+      opts.force = true
+    end
+    return orig(name, handler, opts)
+  end
+end
+
 -- Core settings
 -- =========================================
 lvim.leader = "space"
 lvim.log.level = "warn"
 lvim.colorscheme = "lunar"
 lvim.format_on_save.enabled = true
-lvim.format_on_save.pattern = { "*.py", "*.sh", "*.bash", "*.zsh", "*.lua" }
+lvim.format_on_save.pattern = {
+  "*.py",
+  "*.sh",
+  "*.bash",
+  "*.zsh",
+  "*.lua",
+  -- Languages enabled via LunarVim supported-languages docs. Formatting is
+  -- provided by each language's LSP (gopls/clangd/terraformls/jsonls/tsserver/
+  -- solargraph). YAML/Ansible are intentionally excluded (no LSP formatter).
+  "*.go",
+  "*.tf",
+  "*.tfvars",
+  "*.json",
+  "*.jsonc",
+  "*.c",
+  "*.cc",
+  "*.cpp",
+  "*.cxx",
+  "*.h",
+  "*.hpp",
+  "*.hh",
+  "*.js",
+  "*.jsx",
+  "*.mjs",
+  "*.cjs",
+  "*.ts",
+  "*.tsx",
+  "*.rb",
+}
 vim.lsp.set_log_level "error"
 
 -- Vim options
@@ -59,6 +108,18 @@ lvim.builtin.treesitter.ensure_installed = {
   "css",
   "sql",
   "query",
+  -- Languages enabled via LunarVim supported-languages docs
+  "go",
+  "gomod",
+  "gosum",
+  "c",
+  "cpp",
+  "javascript",
+  "typescript",
+  "tsx",
+  "jsdoc",
+  "ruby",
+  "terraform",
 }
 lvim.builtin.treesitter.highlight.enable = true
 
@@ -128,6 +189,13 @@ vim.filetype.add {
   pattern = {
     [".*/%.ssh/config"] = "sshconfig",
     [".*/ssh/ssh_config"] = "sshconfig",
+    -- Ansible: map playbooks/roles to `yaml.ansible` so ansiblels attaches.
+    -- The yaml treesitter parser still handles highlighting for this filetype.
+    [".*/playbooks/.*%.ya?ml"] = "yaml.ansible",
+    [".*/roles/.*/tasks/.*%.ya?ml"] = "yaml.ansible",
+    [".*/roles/.*/handlers/.*%.ya?ml"] = "yaml.ansible",
+    [".*/playbook%.ya?ml"] = "yaml.ansible",
+    [".*/site%.ya?ml"] = "yaml.ansible",
   },
 }
 
@@ -175,6 +243,79 @@ lvim.plugins = {
   { "nvim-neotest/nvim-nio" },
   { "nvim-neotest/neotest" },
   { "nvim-neotest/neotest-python" },
+
+  -- DX plugins (curated from LunarVim's example-configurations page)
+  -- =========================================
+  -- Local Neovim is 0.11.x, but the pinned Docker/CI image runs 0.9.5, so every
+  -- spec below stays compatible with both. Only `leap` needs a nvim-0.10 guard.
+  -- Maintained forks are used where the example page listed archived plugins.
+
+  -- Diagnostics & LSP
+  { "folke/trouble.nvim", cmd = "Trouble", opts = {} }, -- diagnostics/quickfix/refs list
+  {
+    "ray-x/lsp_signature.nvim",
+    event = "InsertEnter",
+    opts = { hint_enable = false, floating_window = true },
+  },
+  { "rmagatti/goto-preview", config = true }, -- peek defs/refs in a floating window
+  { "hedyhli/outline.nvim", cmd = { "Outline", "OutlineOpen" }, opts = {} }, -- symbol tree panel
+
+  -- Search & refactor
+  { "nvim-pack/nvim-spectre", dependencies = { "nvim-lua/plenary.nvim" } }, -- project search/replace
+  { "kevinhwang91/nvim-bqf", ft = "qf" }, -- better quickfix window
+  {
+    "folke/todo-comments.nvim",
+    event = "BufReadPost",
+    dependencies = { "nvim-lua/plenary.nvim" },
+    config = true,
+  },
+
+  -- Git workflow
+  {
+    "sindrets/diffview.nvim",
+    cmd = { "DiffviewOpen", "DiffviewFileHistory" },
+    dependencies = { "nvim-lua/plenary.nvim" },
+  },
+  -- Maintained fork of ruifm/gitlinker (which is unmaintained).
+  { "linrongbin16/gitlinker.nvim", cmd = "GitLink", config = true },
+  {
+    "pwntester/octo.nvim", -- GitHub issues/PRs in-editor (needs `gh`)
+    cmd = "Octo",
+    dependencies = {
+      "nvim-lua/plenary.nvim",
+      "nvim-telescope/telescope.nvim",
+      "nvim-tree/nvim-web-devicons",
+    },
+    config = true,
+  },
+
+  -- Editing & motion
+  { "kylechui/nvim-surround", event = "BufReadPost", config = true }, -- modern vim-surround
+  {
+    -- leap moved off GitHub to Codeberg; requires Neovim 0.10+, so it is
+    -- guarded off on the 0.9.5 CI image.
+    url = "https://codeberg.org/andyg/leap.nvim",
+    event = "BufReadPost",
+    cond = function()
+      return vim.fn.has "nvim-0.10" == 1
+    end,
+    dependencies = { "tpope/vim-repeat" },
+    config = function()
+      -- Sneak-style mappings. `create_default_mappings()` is deprecated and its
+      -- default `S` collides with nvim-surround's visual-mode `S`, so map `S`
+      -- only in normal + operator-pending and leave visual `S` to surround.
+      vim.keymap.set({ "n", "x", "o" }, "s", "<Plug>(leap-forward)")
+      vim.keymap.set({ "n", "o" }, "S", "<Plug>(leap-backward)")
+      vim.keymap.set("n", "gs", "<Plug>(leap-from-window)")
+    end,
+  },
+  {
+    "nvim-treesitter/nvim-treesitter-context", -- sticky function/class header
+    event = "BufReadPost",
+    config = function()
+      require("treesitter-context").setup { max_lines = 3 }
+    end,
+  },
 }
 
 -- DAP setup (debugpy + pytest)
@@ -224,3 +365,48 @@ lvim.builtin.which_key.mappings["C"] = {
   name = "Python",
   c = { "<cmd>lua require('swenv.api').pick_venv()<cr>", "Choose Env" },
 }
+
+-- Diagnostics / Trouble / TODOs (<leader>x)
+lvim.builtin.which_key.mappings["x"] = {
+  name = "Trouble/Diagnostics",
+  x = { "<cmd>Trouble diagnostics toggle<cr>", "Workspace Diagnostics" },
+  d = { "<cmd>Trouble diagnostics toggle filter.buf=0<cr>", "Document Diagnostics" },
+  q = { "<cmd>Trouble qflist toggle<cr>", "Quickfix List" },
+  l = { "<cmd>Trouble loclist toggle<cr>", "Location List" },
+  r = { "<cmd>Trouble lsp toggle focus=false win.position=right<cr>", "LSP Refs/Defs" },
+  s = { "<cmd>Trouble symbols toggle focus=false<cr>", "Symbols" },
+  t = { "<cmd>TodoTelescope<cr>", "Search TODOs" },
+}
+
+-- Search & replace (Spectre) (<leader>S)
+lvim.builtin.which_key.mappings["S"] = {
+  name = "Search/Replace",
+  s = { "<cmd>lua require('spectre').toggle()<cr>", "Spectre (toggle)" },
+  w = { "<cmd>lua require('spectre').open_visual({ select_word = true })<cr>", "Search current word" },
+  f = { "<cmd>lua require('spectre').open_file_search({ select_word = true })<cr>", "Search in current file" },
+}
+
+-- Symbols outline (<leader>o)
+lvim.builtin.which_key.mappings["o"] = { "<cmd>Outline<cr>", "Symbols Outline" }
+
+-- Extra git tools: diffview + gitlinker + octo (<leader>G, to avoid clobbering
+-- LunarVim's core `g` gitsigns group)
+lvim.builtin.which_key.mappings["G"] = {
+  name = "Git+",
+  d = { "<cmd>DiffviewOpen<cr>", "Diffview" },
+  h = { "<cmd>DiffviewFileHistory<cr>", "History (repo)" },
+  H = { "<cmd>DiffviewFileHistory %<cr>", "History (current file)" },
+  y = { "<cmd>GitLink<cr>", "Yank git permalink" },
+  Y = { "<cmd>GitLink!<cr>", "Open git permalink in browser" },
+  o = { "<cmd>Octo pr list<cr>", "Octo: list PRs" },
+  i = { "<cmd>Octo issue list<cr>", "Octo: list issues" },
+  r = { "<cmd>Octo review start<cr>", "Octo: start review" },
+}
+
+-- goto-preview (peek in floating window) and TODO navigation
+lvim.keys.normal_mode["gpd"] = "<cmd>lua require('goto-preview').goto_preview_definition()<cr>"
+lvim.keys.normal_mode["gpr"] = "<cmd>lua require('goto-preview').goto_preview_references()<cr>"
+lvim.keys.normal_mode["gpi"] = "<cmd>lua require('goto-preview').goto_preview_implementation()<cr>"
+lvim.keys.normal_mode["gP"] = "<cmd>lua require('goto-preview').close_all_win()<cr>"
+lvim.keys.normal_mode["]t"] = "<cmd>lua require('todo-comments').jump_next()<cr>"
+lvim.keys.normal_mode["[t"] = "<cmd>lua require('todo-comments').jump_prev()<cr>"

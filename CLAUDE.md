@@ -4,95 +4,155 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-This is a LunarVim configuration repository — a highly customized Neovim setup built on top of [LunarVim](https://www.lunarvim.org/) (release-1.3/neovim-0.9 branch). It is a personal config that gets deployed to `~/.config/lvim/`.
+This is a LunarVim configuration repository — a customized Neovim setup built on
+top of [LunarVim](https://www.lunarvim.org/) (`release-1.3/neovim-0.9` branch). It
+is a personal config that gets deployed to `~/.config/lvim/`.
 
-## Setup
+> **Neovim version duality (important):** the LunarVim branch pins **Neovim 0.9**,
+> and the Docker/CI image (`make docker-build`) runs **0.9.5** — but a developer's
+> local machine may run a much newer Neovim (e.g. 0.11.x). The config must work on
+> **both**. That's why you'll see version guards (e.g. `snacks.notifier` disabled,
+> `leap` gated behind `nvim-0.10`) and the treesitter-predicate compat shim at the
+> top of `config.lua`. Don't introduce 0.10+-only APIs without a guard.
+
+## ⚠️ Architecture — read this first
+
+**`config.lua` is the one and only active entry point** (deployed to
+`~/.config/lvim/config.lua`). It is **lean and self-contained**: it sets
+`lvim.*` options, treesitter parsers, LSP `skipped_servers`, formatters, a manual
+`bashls` setup, filetype detection, Python DAP/neotest, an inline `lvim.plugins`
+list, and which-key mappings — all directly, in one file.
+
+**`lua/user/` is DORMANT.** It is a large vendored, Abzcoding-style LunarVim
+superset (`plugins.lua`, `builtin.lua`, `keybindings.lua`, `null_ls/`, per-language
+modules, etc.). **Nothing in `config.lua` `require`s it.** It is **reference /
+precedent only** — mine it for config snippets, but changing it has **no effect**
+on the running editor. In particular, the `lvim.builtin.*_programming` flags and
+the `tabnine`/`harpoon`/`neoclip` toggles live only in that dormant tree and are
+**not** part of the active config.
+
+`config-simple.lua` is a third, even smaller variant that is also not loaded by default.
+
+> If a change is meant to affect the editor, it almost always belongs in
+> `config.lua`, `ftplugin/`, or `lsp-settings/` — not `lua/user/`.
+
+## Setup / deploy
 
 ```bash
 # Full bootstrap (installs LunarVim + dependencies)
-make bootstrap
-# or directly:
-./bootstrap.sh
+make bootstrap            # or ./bootstrap.sh
 
-# Sync config files to ~/.config/lvim/
+# Deploy config to ~/.config/lvim/  (PREFERRED: zip-backup + clean install)
+make deploy               # preview first with: make deploy ARGS=--dry-run
+                          #  ( uv run script/install.py — see specs/install.md )
+
+# Older overlay-copy deploy (kept for compatibility; leaves stale files behind)
 make sync
 
-# Install linters/formatters on macOS (arm64)
-make macos-arm64
+# Install formatters/linters + language toolchains
+make macos-arm64          # macOS (Apple Silicon) — non-interactive
+make ubuntu               # Ubuntu arm64
+make ubuntu-64-bit        # Ubuntu x86_64
 
-# Install linters/formatters on Ubuntu (arm64)
-make ubuntu
+# Install LSP servers into Mason (headless)
+make mason-tool-install
 
-# Install linters/formatters on Ubuntu (x86_64)
-make ubuntu-64-bit
+# Health check
+make doctor               # uv run script/doctor.py
 ```
 
-## Architecture
+## What `config.lua` actually contains
 
-The entry point is `config.lua` (deployed to `~/.config/lvim/config.lua`). It:
-1. Sets global `lvim.*` options that control which features/plugins are active
-2. Calls `require("user.null_ls").config()` to configure linters and formatters
-3. Skips several LSP servers from auto-configuration (gopls, pyright, rust_analyzer, etc.) in favor of dedicated plugin setups
+- **Core options**: leader = Space, `colorscheme = "lunar"`, `format_on_save`
+  enabled with an explicit `pattern` list, relativenumber, wrap, clipboard,
+  `<C-s>` = save.
+- **Builtins toggled**: `alpha` dashboard, `terminal`, `nvimtree` (left + git
+  icons), `dap.active`, `indentlines.active`.
+- **Treesitter**: `lvim.builtin.treesitter.ensure_installed` — the canonical list
+  of parsers (Python/Shell/Lua/JSON/YAML/DevOps + Go/C/C++/JS/TS/Ruby/Terraform).
+- **LSP**: skips `pyright, basedpyright, ruff, bashls, jsonls` (hand-configured
+  elsewhere); all other servers are auto-configured by LunarVim from Mason, with
+  overrides read from `lsp-settings/*.json`.
+- **Formatters**: only `shfmt` + `stylua` go through LunarVim's null-ls wrapper
+  (`require("lvim.lsp.null-ls.formatters").setup`). Everything else formats via its
+  LSP server.
+- **Plugins**: an inline `lvim.plugins` list — `snacks.nvim` (partial), `none-ls`
+  (maintained null-ls fork), `dressing`, `schemastore`, `swenv`, Python DAP +
+  `neotest`, plus a curated DX set (trouble, lsp_signature, goto-preview, outline,
+  spectre, bqf, todo-comments, diffview, gitlinker, octo, nvim-surround, leap,
+  treesitter-context).
+- **which-key groups**: `d` testing (neotest), `C` Python (swenv), `x`
+  diagnostics/Trouble, `S` spectre, `o` outline, `G` git+ (diffview/gitlinker/octo).
 
-### `lua/user/` — Core configuration modules
+## Adding / enabling a language (the established pattern)
 
-Each file exports a module with a `.config()` method:
+1. **Treesitter** — add the parser to `ensure_installed` in `config.lua`.
+2. **LSP server** — add it to the `MasonInstall` list in the `mason-tool-install`
+   Makefile target. LunarVim auto-configures Mason-installed servers on the matching
+   filetype (unless listed in `skipped_servers`). Put per-server settings in
+   `lsp-settings/<server>.json` (flat dotted keys, e.g. `gopls.json`).
+   - Servers needing custom root detection / registration are hand-set-up in
+     `ftplugin/<ft>.lua` via `require("lvim.lsp.manager").setup(...)`. See
+     `ftplugin/python.lua` (basedpyright + ruff — note: custom servers **must**
+     pass `cmd` explicitly), `json.lua`, `yaml.lua`, `toml.lua`, `dockerfile.lua`.
+3. **format-on-save** — add the file glob to `lvim.format_on_save.pattern`. At
+   LSP-only depth, formatting comes from the LSP (gopls/clangd/terraformls/jsonls/
+   tsserver/solargraph). YAML/Ansible have no LSP formatter — don't add them.
+4. **Filetype detection** — extend the `vim.filetype.add` block in `config.lua`
+   (e.g. Ansible playbooks/roles → `yaml.ansible` so `ansiblels` attaches).
+5. **Tooling** — add binaries to the appropriate Makefile installer target
+   (`uv-/npm-/brew-/go-/luarocks-/gem-tool-install` and `macos-arm64`).
 
-- **`null_ls/init.lua`** — Central linter/formatter setup via null-ls. Configures formatters (prettier, prettierd, ruff, black, stylua, gofmt, etc.) and linters (flake8, selene, luacheck, golangci-lint, hadolint, shellcheck, vale, semgrep, etc.)
-- **`null_ls/go.lua`** — Custom Go code actions (gostructhelper)
-- **`null_ls/markdown.lua`** — Custom markdown hover provider
-- **`builtin.lua`** — Overrides LunarVim built-in plugin defaults (cmp, telescope, treesitter, nvimtree, etc.)
-- **`plugins.lua`** — Full plugin list for lazy.nvim. Time-based colorscheme switching (rose-pine at night, kanagawa late night, catppuccin evening, lunar daytime)
-- **`keybindings.lua`** — Custom key mappings (leader = Space)
-- **`autocommands.lua`** — Custom autocommands
-- **`lsp_kind.lua`** — Icon/UI configuration for LSP
-- **`theme.lua`** — Theme setup functions called from `plugins.lua`
-- **`neovim.lua`** — Base Neovim vim options
+`specs/ai-completion.md` documents a planned, opt-in TabNine rollout (not active).
 
-### Language-specific modules (in `lua/user/`)
+## Directories
 
-`go.lua`, `rust_tools.lua`, `metals.lua`, `flutter_tools.lua`, `tex.lua`, `dap.lua`, `ntest.lua` — each sets up language-specific LSP/tooling when the corresponding `lvim.builtin.*_programming` flag is enabled in `config.lua`.
+- **`ftplugin/`** — per-filetype settings + hand-configured LSP servers.
+- **`ftdetect/`** — extra filetype detection (most detection is inline in `config.lua`).
+- **`lsp-settings/`** — per-server JSON overrides (auto-loaded by nlsp-settings).
+- **`snippets/`** — LuaSnip snippets.
+- **`script/`** — `install.py` (the `make deploy` engine) and `doctor.py`.
+- **`specs/`** — design/spec docs (installer, ai-completion, etc.).
+- **`tests/`** — plenary Lua specs (`tests/user/`) + Python (`tests/unit`, `tests/testinfra`).
+- **`lua/user/`** — **DORMANT** vendored superset (precedent only; see Architecture).
 
-### Other directories
+## Testing
 
-- **`after/ftplugin/`** — Filetype-specific settings run after plugin load
-- **`ftdetect/`** — Custom filetype detection rules
-- **`ftplugin/`** — Filetype-specific settings
-- **`lsp-settings/`** — Per-language JSON configs for LSP servers
-- **`snippets/`** — LuaSnip snippet files
-- **`lua/telescope/`** — Telescope extension configurations
-- **`lua/lualine/`** — Custom lualine statusline components
+```bash
+make test            # plenary Lua specs (headless; needs plenary at $PLENARY_PATH or /tmp/plenary.nvim)
+make test-unit       # fast Python unit tests (pytest)
+make test-testinfra  # testinfra suite against the Docker image
+make docker-lint     # luacheck inside Docker (use this if local luacheck is broken)
+```
 
-## Feature Flags in `config.lua`
+## Gotchas learned the hard way
 
-Most features are toggled via `lvim.builtin.*` flags. Key ones:
+- **Don't trust `lua/user/` as active code** — see Architecture. Verify a symbol is
+  actually reachable from `config.lua` before assuming a change takes effect.
+- **`leap.nvim` moved to Codeberg** (`url = "https://codeberg.org/andyg/leap.nvim"`)
+  and requires nvim 0.10+, so its spec is `cond`-guarded; it uses Sneak-style
+  mappings so visual-mode `S` stays with `nvim-surround`.
+- **`make deploy` may report "0 changes"** if an auto-sync already mirrored the repo
+  into `~/.config/lvim/`; the deployed dir, not a symlink, can already be identical.
+- **Mason/data dir**: the live LunarVim data dir is `~/.local/share/lvim/`
+  (`~/.local/share/lunarvim/` may exist but be stale). Servers install under
+  `~/.local/share/lvim/mason/packages/`.
+- **Local `luacheck` can be broken** (luarocks Lua-version loader errors); use
+  `make docker-lint` for a reliable lint. For quick Lua checks:
+  `luajit -bl <file> /dev/null` (parse) and `stylua --check <file>`.
 
-| Flag | Default | Purpose |
-|------|---------|---------|
-| `fancy_statusline.active` | `true` | Custom lualine |
-| `harpoon.active` | `true` | Harpoon file marks |
-| `neoclip.active` | `true` | Clipboard manager |
-| `tabnine.active` | `true` | TabNine completion |
-| `go_programming.active` | `false` | Enable gopher.nvim + dap-go |
-| `python_programming.active` | `false` | Enable swenv + dap-python |
-| `rust_programming.active` | `false` | Enable rust-tools + crates |
-| `dap.active` | `false` | Debug adapter protocol |
-| `noice.active` | `false` | Noice UI overrides |
-| `tree_provider` | `"nvimtree"` | Can be `"neo-tree"` |
-| `motion_provider` | `"hop"` | Can be `"leap"` |
-| `task_runner` | `""` | Can be `"async_tasks"` or `"overseer"` |
+## Linting/Formatting tool inventory
 
-## Linting/Formatting Tools
+Installed via `make macos-arm64` / `make ubuntu*` / the `*-tool-install` targets:
 
-The `null_ls/init.lua` dynamically enables tools based on what's installed. Required external tools (installed via `make macos-arm64` or equivalent):
-
-- **Lua**: `luacheck` (luarocks) or `selene` (cargo)
-- **Python**: `black`, `flake8`, `ruff`, `yapf`, `isort`, `pylint`
-- **Go**: `gofmt`, `golangci-lint`, `revive`, `gostructhelper`
-- **Markdown**: `vale`, `markdownlint-cli`
-- **Docker**: `hadolint`
-- **JS/TS**: `prettierd` or `prettier`
-- **Shell**: `shellcheck`
-- **Vim**: `vim-vint`
+- **Lua**: `luacheck` (luarocks) or `selene` (cargo, opt-in) · formatter `stylua`
+- **Python**: `basedpyright`+`ruff` (LSP), `black`, `flake8`, `isort`, `pylint`, `yapf`
+- **Go**: `gopls`, `golangci-lint`, `revive`, `goimports`
+- **C/C++**: `clangd` (+ built-in clang-format), `cppcheck`
+- **Terraform**: `terraform-ls`, `terraform`, `tflint`
+- **JS/TS**: `typescript-language-server`, `prettierd`, `eslint_d`
+- **Ruby**: `solargraph`, `rubocop`
+- **Ansible/YAML**: `ansible-language-server`, `ansible-lint`, `yamllint`
+- **Markdown**: `vale`, `markdownlint-cli` · **Docker**: `hadolint` · **Shell**: `shellcheck`, `shfmt` · **Vim**: `vim-vint`
 
 Vale config: copy `vale_config.ini` to `~/.vale.ini` and `~/.config/vale/`.

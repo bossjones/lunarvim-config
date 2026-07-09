@@ -63,9 +63,11 @@ jobs:
 
       - name: Install LunarVim
         run: |
-          LV_BRANCH='release-1.3/neovim-0.9' bash <(curl -s \
-            https://raw.githubusercontent.com/LunarVim/LunarVim/release-1.3/neovim-0.9/utils/installer/install.sh) \
-            --install-dependencies -y
+          curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+            https://raw.githubusercontent.com/LunarVim/LunarVim/release-1.3/neovim-0.9/utils/installer/install.sh \
+            -o /tmp/lvim-install.sh
+          LV_BRANCH='release-1.3/neovim-0.9' bash /tmp/lvim-install.sh --install-dependencies -y
+          rm -f /tmp/lvim-install.sh
 
       - name: Sync config
         run: make sync

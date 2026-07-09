@@ -1,4 +1,4 @@
-.PHONY: help backup sync deploy ubuntu ubuntu-64-bit macos-arm64 evals bootstrap doctor install uv-tool-install npm-tool-install brew-tool-install go-tool-install luarocks-tool-install copy-configs mason-tool-install test test-unit test-testinfra test-all docker-build docker-test docker-lint docker-shell
+.PHONY: help backup sync deploy ubuntu ubuntu-64-bit macos-arm64 evals bootstrap doctor install uv-tool-install npm-tool-install brew-tool-install go-tool-install luarocks-tool-install gem-tool-install copy-configs mason-tool-install test test-unit test-testinfra test-all docker-build docker-test docker-lint docker-shell
 
 help: ## Show this help message
 	@uv run python -c "import re; \
@@ -41,9 +41,11 @@ ubuntu: ## Install linters and formatters on Ubuntu (arm64)
 	sudo luarocks install luacheck
 	curl -L 'https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-arm64' > ~/.local/bin/hadolint && \
 	chmod +x ~/.local/bin/hadolint && \
-	pip install vim-vint && \
+	uv tool install vim-vint && \
 	npm install -g @fsouza/prettierd && \
-	pip install yapf flake8 black && \
+	uv tool install yapf && \
+	uv tool install flake8 && \
+	uv tool install black && \
 	wget https://github.com/errata-ai/vale/releases/download/v2.26.0/vale_2.26.0_Linux_arm64.tar.gz -O vale.tar.gz && \
 	tar -xvzf vale.tar.gz -C ~/.local/bin && \
 	rm vale.tar.gz && \
@@ -54,9 +56,11 @@ ubuntu-64-bit: ## Install linters and formatters on Ubuntu (x86_64)
 	sudo luarocks install luacheck
 	curl -L 'https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64' > ~/.local/bin/hadolint && \
 	chmod +x ~/.local/bin/hadolint && \
-	pip install vim-vint && \
+	uv tool install vim-vint && \
 	npm install -g @fsouza/prettierd && \
-	pip install yapf flake8 black && \
+	uv tool install yapf && \
+	uv tool install flake8 && \
+	uv tool install black && \
 	wget https://github.com/errata-ai/vale/releases/download/v3.0.7/vale_3.0.7_Linux_64-bit.tar.gz -O vale.tar.gz && \
 	tar -xvzf vale.tar.gz -C ~/.local/bin && \
 	rm vale.tar.gz && \
@@ -64,21 +68,43 @@ ubuntu-64-bit: ## Install linters and formatters on Ubuntu (x86_64)
 
 macos-arm64: ## Install linters and formatters on macOS (Apple Silicon)
 	brew install luarocks
-# if you want to use luacheck
-	sudo luarocks install luacheck
-# if you want to use selene instead of luacheck
-	cargo install selene
+# luacheck — Homebrew's luarocks installs into a user-writable prefix, so NO sudo
+# (sudo here previously hung the target on a password prompt in non-interactive runs).
+	luarocks install luacheck
+# selene is an optional alternative to luacheck; opt in by uncommenting:
+#	cargo install selene
 # if you want to lint dockerfiles
 	brew install hadolint
 # for vim linting
-	pip install vim-vint
+	uv tool install vim-vint
 # install llvm and clang_format for clang stuff
 # if you want to use prettierd
 	npm install -g @fsouza/prettierd
 # for python stuff
-	pip install autoflake autopep8 better_exceptions black bpython flake8 isort pylint rich ruff yapf
+	uv tool install autoflake
+	uv tool install autopep8
+	uv tool install better_exceptions
+	uv tool install black
+	uv tool install bpython
+	uv tool install flake8
+	uv tool install isort
+	uv tool install pylint
+	uv tool install rich
+	uv tool install ruff
+	uv tool install yapf
 # if you want to use the markdown thingy
 	brew install vale markdownlint-cli
+# language toolchains for Go/C++/Terraform/JS/Ruby/Ansible.
+# LSP servers (gopls/clangd/terraform-ls/tsserver/solargraph/ansiblels) install
+# via `make mason-tool-install`; the tools below are the formatters/linters the
+# LSPs use plus standalone linters. clangd formats C/C++ itself (no llvm needed).
+	brew install cppcheck
+	brew install hashicorp/tap/terraform
+	npm install -g eslint_d
+	uv tool install ansible
+	uv tool install ansible-lint
+	uv tool install yamllint
+	@if command -v gem >/dev/null 2>&1; then gem install solargraph rubocop; else echo "gem not found — install Ruby to get solargraph/rubocop"; fi
 
 
 # ~/dev/bossjones/lunarvim-config main*
@@ -105,7 +131,7 @@ bootstrap: ## Full bootstrap (install LunarVim + dependencies)
 doctor: ## Check environment health (binaries, linters, LSP, configs)
 	@uv run script/doctor.py
 
-install: uv-tool-install npm-tool-install brew-tool-install go-tool-install luarocks-tool-install copy-configs mason-tool-install ## Install all tools, configs, and LSP servers
+install: uv-tool-install npm-tool-install brew-tool-install go-tool-install luarocks-tool-install gem-tool-install copy-configs mason-tool-install ## Install all tools, configs, and LSP servers
 
 uv-tool-install: ## Install Python CLI tools globally via uv tool
 	uv tool install basedpyright
@@ -118,31 +144,43 @@ uv-tool-install: ## Install Python CLI tools globally via uv tool
 	uv tool install ruff
 	uv tool install vim-vint
 	uv tool install yapf
+	uv tool install ansible
+	uv tool install ansible-lint
+	uv tool install yamllint
 
 npm-tool-install: ## Install Node.js CLI tools globally via npm
 	npm install -g @fsouza/prettierd
 	npm install -g markdownlint-cli
+	npm install -g eslint_d
 
 brew-tool-install: ## Install CLI tools via Homebrew (requires brew in PATH)
 	@if command -v brew >/dev/null 2>&1; then \
-		brew install hadolint vale golangci-lint; \
+		brew install hadolint vale golangci-lint cppcheck; \
+		brew install hashicorp/tap/terraform; \
 	else \
 		echo "brew not found in PATH — skipping brew-tool-install (install Homebrew: https://brew.sh)"; \
 	fi
 
 go-tool-install: ## Install Go CLI tools
-	go install golang.org/x/tools/cmd/goimports@latest
-	go install github.com/mgechev/revive@latest
+	GOBIN="$$(go env GOPATH)/bin" go install golang.org/x/tools/cmd/goimports@latest
+	GOBIN="$$(go env GOPATH)/bin" go install github.com/mgechev/revive@latest
 
 luarocks-tool-install: ## Install Lua linting tools via luarocks
 	luarocks install luacheck
+
+gem-tool-install: ## Install Ruby CLI tools via gem (requires ruby + gem in PATH)
+	@if command -v gem >/dev/null 2>&1; then \
+		gem install solargraph rubocop; \
+	else \
+		echo "gem not found in PATH — skipping gem-tool-install (install Ruby first)"; \
+	fi
 
 copy-configs: ## Copy config files (vale, etc.) to their expected locations
 	@cp -v vale_config.ini ~/.vale.ini
 	@mkdir -p ~/.config/vale/styles && cp -av .vale/* ~/.config/vale/styles/
 
 mason-tool-install: ## Install Mason LSP/tool packages via LunarVim
-	lvim --headless +"MasonInstall pyright bash-language-server shellcheck shfmt debugpy stylua lua-language-server" +q
+	lvim --headless +"MasonInstall pyright bash-language-server yaml-language-server json-lsp taplo dockerfile-language-server shellcheck shfmt debugpy stylua lua-language-server gopls clangd terraform-ls typescript-language-server solargraph ansible-language-server clang-format tflint" +q
 
 test: ## Run Lua unit tests via plenary (headless)
 	nvim --headless -u tests/minimal_init.lua \
