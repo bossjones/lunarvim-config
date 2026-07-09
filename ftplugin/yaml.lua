@@ -25,4 +25,8 @@ local opts = {
   },
 }
 
-require("lvim.lsp.manager").setup("yamlls", opts)
+-- For `yaml.ansible` buffers this ftplugin still runs (dotted filetype), but
+-- ansiblels owns those files — skip yamlls there to avoid duplicate diagnostics.
+if vim.bo.filetype ~= "yaml.ansible" then
+  require("lvim.lsp.manager").setup("yamlls", opts)
+end

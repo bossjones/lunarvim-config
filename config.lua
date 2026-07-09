@@ -28,7 +28,35 @@ lvim.leader = "space"
 lvim.log.level = "warn"
 lvim.colorscheme = "lunar"
 lvim.format_on_save.enabled = true
-lvim.format_on_save.pattern = { "*.py", "*.sh", "*.bash", "*.zsh", "*.lua" }
+lvim.format_on_save.pattern = {
+  "*.py",
+  "*.sh",
+  "*.bash",
+  "*.zsh",
+  "*.lua",
+  -- Languages enabled via LunarVim supported-languages docs. Formatting is
+  -- provided by each language's LSP (gopls/clangd/terraformls/jsonls/tsserver/
+  -- solargraph). YAML/Ansible are intentionally excluded (no LSP formatter).
+  "*.go",
+  "*.tf",
+  "*.tfvars",
+  "*.json",
+  "*.jsonc",
+  "*.c",
+  "*.cc",
+  "*.cpp",
+  "*.cxx",
+  "*.h",
+  "*.hpp",
+  "*.hh",
+  "*.js",
+  "*.jsx",
+  "*.mjs",
+  "*.cjs",
+  "*.ts",
+  "*.tsx",
+  "*.rb",
+}
 vim.lsp.set_log_level "error"
 
 -- Vim options
@@ -80,6 +108,18 @@ lvim.builtin.treesitter.ensure_installed = {
   "css",
   "sql",
   "query",
+  -- Languages enabled via LunarVim supported-languages docs
+  "go",
+  "gomod",
+  "gosum",
+  "c",
+  "cpp",
+  "javascript",
+  "typescript",
+  "tsx",
+  "jsdoc",
+  "ruby",
+  "terraform",
 }
 lvim.builtin.treesitter.highlight.enable = true
 
@@ -149,6 +189,13 @@ vim.filetype.add {
   pattern = {
     [".*/%.ssh/config"] = "sshconfig",
     [".*/ssh/ssh_config"] = "sshconfig",
+    -- Ansible: map playbooks/roles to `yaml.ansible` so ansiblels attaches.
+    -- The yaml treesitter parser still handles highlighting for this filetype.
+    [".*/playbooks/.*%.ya?ml"] = "yaml.ansible",
+    [".*/roles/.*/tasks/.*%.ya?ml"] = "yaml.ansible",
+    [".*/roles/.*/handlers/.*%.ya?ml"] = "yaml.ansible",
+    [".*/playbook%.ya?ml"] = "yaml.ansible",
+    [".*/site%.ya?ml"] = "yaml.ansible",
   },
 }
 
