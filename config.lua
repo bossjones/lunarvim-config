@@ -4,21 +4,39 @@
 -- Treesitter query compat shim
 -- =========================================
 -- LunarVim 1.3 pins a 2023-era nvim-treesitter (see lazy-lock.json) that
--- unconditionally registers the `has-ancestor?`/`has-parent?` predicates and
--- the `trim!` directive. Neovim 0.10+ ships those natively, and its
--- vim.treesitter.query.add_predicate/add_directive now hard-error instead of
--- silently overriding when force isn't set, which crashes nvim-treesitter's
--- module load on every BufReadPre. Default force=true so re-registration is
--- silent again, matching pre-0.10 behavior. Must run before any plugin
+-- registers all of its predicates/directives with the pre-0.10 signature
+-- add_predicate(name, handler, force), where `force` is a BOOLEAN. On nvim 0.10+:
+--   * anything wrapping these functions must not assume arg 3 is a table --
+--     indexing the boolean `true` crashes nvim-treesitter's module load on
+--     every BufReadPre (i.e. opening any file);
+--   * a handler registered that way is handed table<capture_id, TSNode[]>
+--     instead of table<capture_id, TSNode> unless it opts in with all = false,
+--     so the vendored handlers' node:parent()/node:range() calls blow up in
+--     queries using #nth? / #has-ancestor? / #is? / #has-type? (go, c, cpp,
+--     java, ...);
+--   * nvim itself now ships has-ancestor?, has-parent? and trim!, and the
+--     vendored copies would override them with older, arg-unaware versions.
+-- Normalize the legacy call shape, keep Neovim's own implementations, and give
+-- everything else old-style match semantics. Must run before any plugin
 -- (including nvim-treesitter, lazy-loaded on BufReadPre) can call these.
-for _, fn_name in ipairs { "add_predicate", "add_directive" } do
-  local orig = vim.treesitter.query[fn_name]
-  vim.treesitter.query[fn_name] = function(name, handler, opts)
-    opts = opts or {}
-    if opts.force == nil then
-      opts.force = true
+if vim.fn.has "nvim-0.10" == 1 then
+  local tsq = vim.treesitter.query
+  for fn_name, list_name in pairs {
+    add_predicate = "list_predicates",
+    add_directive = "list_directives",
+  } do
+    local orig = tsq[fn_name]
+    tsq[fn_name] = function(name, handler, opts)
+      -- Modern caller (opts table): pass through untouched.
+      if type(opts) == "table" then
+        return orig(name, handler, opts)
+      end
+      -- Legacy caller: arg 3 is a boolean `force` (or nil).
+      if vim.tbl_contains(tsq[list_name](), name) then
+        return -- Neovim (or an earlier registration) already provides this one.
+      end
+      return orig(name, handler, { force = opts == true, all = false })
     end
-    return orig(name, handler, opts)
   end
 end
 
