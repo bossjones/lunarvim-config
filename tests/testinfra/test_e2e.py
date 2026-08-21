@@ -18,7 +18,12 @@ def test_e2e_shell_fixture_opens_and_reports_filetype(host):
     )
     report = json.loads(result.stdout)
     fixture = report["results"][0]
+    checks = {check["name"]: check for check in fixture["checks"]}
     assert result.rc == 0, result.stderr
     assert fixture["path"] == "shell/script.sh"
     assert fixture["ft_got"] == "sh"
-    assert {check["name"] for check in fixture["checks"]} >= {"opens", "filetype"}
+    assert set(checks) >= {"opens", "filetype"}
+    assert checks["opens"]["status"] == "pass"
+    assert "readable file loaded into buffer" in checks["opens"]["message"]
+    assert "5 lines" in checks["opens"]["message"]
+    assert checks["filetype"]["status"] == "pass"

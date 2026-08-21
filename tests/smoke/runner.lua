@@ -59,22 +59,36 @@ end
 
 local function run_fixture(root, entry)
   local path = root .. "/" .. entry.path
+  local requested_path = vim.fn.fnamemodify(path, ":p")
   local checks = {}
+  local readable = vim.fn.filereadable(requested_path) == 1
+  local expected_lines = readable and vim.fn.readfile(requested_path) or {}
 
   vim.cmd("silent! enew!")
   vim.bo.filetype = ""
   vim.v.errmsg = ""
 
-  local opened, err = pcall(vim.cmd.edit, vim.fn.fnameescape(path))
-  local current_path = vim.api.nvim_buf_get_name(0)
-  local open_status = opened and current_path == path and "pass" or "fail"
-  local open_error = ""
-  if not opened then
-    open_error = tostring(err)
-  elseif current_path ~= path then
-    open_error = string.format("expected buffer %s, got %s", path, current_path)
+  local opened, err = pcall(vim.cmd.edit, vim.fn.fnameescape(requested_path))
+  local current_path = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(0), ":p")
+  local buffer_lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+  local path_matches = current_path == requested_path
+  local content_matches = readable and vim.deep_equal(buffer_lines, expected_lines)
+  local open_status = readable and opened and path_matches and content_matches and "pass" or "fail"
+  local open_message
+  if open_status == "pass" then
+    open_message = string.format("readable file loaded into buffer with matching content (%d lines)", #buffer_lines)
+  else
+    open_message = string.format(
+      "expected readable file to load into current buffer with matching content (readable=%s, edit=%s, path_match=%s, content_match=%s, buffer_lines=%d, error=%s)",
+      tostring(readable),
+      tostring(opened),
+      tostring(path_matches),
+      tostring(content_matches),
+      #buffer_lines,
+      opened and "" or tostring(err)
+    )
   end
-  table.insert(checks, check("opens", open_status, open_error))
+  table.insert(checks, check("opens", open_status, open_message))
 
   local ft_got = vim.bo.filetype
   table.insert(
