@@ -36,7 +36,7 @@ end
 local function load_manifest()
   local manifest = dofile(runner_dir() .. "/manifest.lua")
   if type(manifest) ~= "table" then
-    error("manifest.lua must return a table")
+    error "manifest.lua must return a table"
   end
   return manifest
 end
@@ -100,7 +100,7 @@ local function version_parts(version)
     return tonumber(version.major), tonumber(version.minor), tonumber(version.patch) or 0
   end
 
-  local major, minor, patch = tostring(version):match("^(%d+)%.(%d+)%.?(%d*)")
+  local major, minor, patch = tostring(version):match "^(%d+)%.(%d+)%.?(%d*)"
   if major == nil or minor == nil then
     return nil, nil, nil
   end
@@ -126,7 +126,7 @@ end
 local function current_nvim_version()
   local major, minor, patch = version_parts(vim.version())
   if major == nil then
-    error("unable to parse Neovim version")
+    error "unable to parse Neovim version"
   end
   return { major, minor, patch }
 end
@@ -155,7 +155,7 @@ local function version_check(entry, current_version)
 end
 
 local function message_snapshot()
-  return vim.fn.execute("messages")
+  return vim.fn.execute "messages"
 end
 
 local function new_messages(snapshot)
@@ -177,10 +177,6 @@ with_message_evidence = function(message, messages)
     return message
   end
   return message .. "\nmessages:\n" .. messages
-end
-
-local function with_messages(message, snapshot)
-  return with_message_evidence(message, new_messages(snapshot))
 end
 
 local runtime_message_patterns = {
@@ -297,8 +293,7 @@ local function lsp_checks(entry, bufnr, mode)
   end
 
   local lsp_status = vim.tbl_isempty(missing_clients) and "pass" or "fail"
-  local lsp_message = vim.tbl_isempty(missing_clients)
-      and ("attached=" .. joined_names(attached_names))
+  local lsp_message = vim.tbl_isempty(missing_clients) and ("attached=" .. joined_names(attached_names))
     or ("missing=" .. joined_names(missing_clients))
 
   local stopped_clients = {}
@@ -437,10 +432,7 @@ local function format_check(entry, bufnr, requested_path, mode)
   local has_formatted = vim.fn.filereadable(formatted_path) == 1
   local matches_formatted = true
   if has_formatted then
-    matches_formatted = vim.deep_equal(
-      vim.api.nvim_buf_get_lines(bufnr, 0, -1, false),
-      vim.fn.readfile(formatted_path)
-    )
+    matches_formatted = vim.deep_equal(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), vim.fn.readfile(formatted_path))
   end
 
   local status = ok and matches_formatted and message_issue == nil and "pass" or "fail"
@@ -452,8 +444,7 @@ local function format_check(entry, bufnr, requested_path, mode)
     message = message .. " error=" .. tostring(err)
   end
   if message_issue ~= nil then
-    message = message_issue.label .. ": " .. message
-      .. " cause=" .. message_issue.summary
+    message = message_issue.label .. ": " .. message .. " cause=" .. message_issue.summary
   end
   return check("format", status, with_message_evidence(message, messages))
 end
@@ -470,7 +461,7 @@ local function run_fixture(root, entry, mode, current_version)
   local readable = vim.fn.filereadable(requested_path) == 1
   local expected_lines = readable and vim.fn.readfile(requested_path) or {}
 
-  vim.cmd("silent! enew!")
+  vim.cmd "silent! enew!"
   vim.bo.filetype = ""
   vim.v.errmsg = ""
 
@@ -482,7 +473,8 @@ local function run_fixture(root, entry, mode, current_version)
   local buffer_lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
   local path_matches = current_path == requested_path
   local content_matches = readable and vim.deep_equal(buffer_lines, expected_lines)
-  local open_status = readable and opened and path_matches and content_matches and open_issue == nil and "pass" or "fail"
+  local open_status = readable and opened and path_matches and content_matches and open_issue == nil and "pass"
+    or "fail"
   local open_message
   if open_issue ~= nil then
     open_message = "runtime error during open: " .. open_issue.summary

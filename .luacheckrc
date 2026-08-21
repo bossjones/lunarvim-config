@@ -4,6 +4,10 @@ stds.nvim = {
   globals = {
     "lvim",
     "Snacks",
+    "SMOKE_MODE",
+    "SMOKE_ONLY",
+    "SMOKE_OUT",
+    "SMOKE_ROOT",
     vim = { fields = { "g" } },
     "CONFIG_PATH",
     "CACHE_PATH",
