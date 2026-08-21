@@ -77,7 +77,9 @@ def test_e2e_lua_fixture_reports_runtime_failures(host):
     assert "runtime error during open" in checks["opens"]["message"]
     assert "invalid node type at position 2007 for language lua" in checks["opens"]["message"]
     assert checks["highlight"]["status"] == "fail"
-    assert "treesitter start error" in checks["highlight"]["message"]
+    assert checks["highlight"]["message"].startswith("runtime error:")
+    assert "\nmessages:\n" in checks["highlight"]["message"]
+    assert "query: invalid node type at position 2007 for language lua" in checks["highlight"]["message"]
     assert "invalid node type at position 2007 for language lua" in checks["highlight"]["message"]
     assert checks["edit"]["status"] == "pass"
     _assert_none_ls_format_failure(checks)

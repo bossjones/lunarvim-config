@@ -46,6 +46,9 @@ local function has_active_highlighter(bufnr)
   return ok and highlighter.active[bufnr] ~= nil
 end
 
+local with_message_evidence
+local classify_runtime_messages
+
 local function highlight_check(entry, bufnr)
   if entry.parser then
     local has_parser = require("nvim-treesitter.parsers").has_parser(entry.parser)
@@ -59,7 +62,13 @@ local function highlight_check(entry, bufnr)
     local status = has_parser and start_ok and active and "pass" or "fail"
     local message = string.format("parser=%s highlighter=%s", tostring(has_parser), tostring(active))
     if not start_ok then
-      message = message .. " treesitter start error: " .. tostring(start_err)
+      local start_issue = classify_runtime_messages(tostring(start_err))
+      if start_issue ~= nil then
+        message = start_issue.label .. ": " .. start_issue.summary
+        message = with_message_evidence(message, start_issue.evidence)
+      else
+        message = message .. " treesitter start error: " .. tostring(start_err)
+      end
     end
     return check("highlight", status, message)
   end
@@ -104,7 +113,7 @@ local function new_messages(snapshot)
   return vim.trim(current)
 end
 
-local function with_message_evidence(message, messages)
+with_message_evidence = function(message, messages)
   if messages == "" then
     return message
   end
@@ -127,7 +136,7 @@ local runtime_message_patterns = {
   { pattern = "[Ee]rror", label = "runtime error", category = "generic" },
 }
 
-local function classify_runtime_messages(messages)
+classify_runtime_messages = function(messages)
   if messages == "" then
     return nil
   end
