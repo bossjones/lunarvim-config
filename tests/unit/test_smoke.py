@@ -178,13 +178,17 @@ def test_runner_env_sets_target_only_when_supplied(smoke, monkeypatch, tmp_path:
     assert with_target["LUNARVIM_CONFIG_DIR"] == str(tmp_path / "target")
 
 
-def test_timeout_returns_one(smoke, monkeypatch):
-    def timeout(*_args, **_kwargs):
+def test_timeout_returns_one(smoke, monkeypatch, tmp_path: Path):
+    monkeypatch.setenv("PATH", "")
+    lvim = write_lvim_stub(tmp_path, {})
+
+    def timeout(command, *_args, **_kwargs):
+        assert command[0] == str(lvim)
         raise subprocess.TimeoutExpired("lvim", 1)
 
     monkeypatch.setattr(smoke.subprocess, "run", timeout)
 
-    assert smoke.main(["--timeout", "1"]) == 1
+    assert smoke.main(["--lvim", str(lvim), "--timeout", "1"]) == 1
 
 
 def test_missing_report_returns_one(smoke, tmp_path: Path):
@@ -208,6 +212,12 @@ def test_render_report_contains_fixture_and_check_status(smoke):
                     "ft_got": "sh",
                     "checks": [
                         {"name": "opens", "status": "pass", "message": ""},
+                        {
+                            "name": "version-gated",
+                            "status": "skip",
+                            "message": "nvim version 0.9.5 does not support leap.nvim",
+                        },
+                        {"name": "lsp", "status": "fail", "message": "bashls missing"},
                     ],
                 }
             ]
@@ -218,3 +228,8 @@ def test_render_report_contains_fixture_and_check_status(smoke):
     output = console.export_text()
     assert "shell/script.sh" in output
     assert "opens" in output
+    assert "version-gated" in output
+    assert "lsp" in output
+    assert "pass" in output
+    assert "skip" in output
+    assert "fail" in output
