@@ -101,6 +101,26 @@ def test_cli_stages_run_root_in_os_temp_dir(tmp_path: Path):
     assert run_root.parent == Path(tempfile.gettempdir()).resolve()
 
 
+def test_repository_fixture_files_are_not_ignored():
+    fixtures = [
+        "tests/smoke/fixtures/log/app.log",
+        "tests/smoke/fixtures/ini/settings.ini",
+        "tests/smoke/fixtures/shell/.zshrc",
+        "tests/smoke/fixtures/git/.gitignore",
+        "tests/smoke/fixtures/just/.justfile",
+    ]
+
+    result = subprocess.run(
+        ["git", "check-ignore", *fixtures],
+        cwd=REPO_ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 1, result.stdout
+
+
 def test_stage_fixtures_preserves_dotfiles(tmp_path: Path, smoke):
     source = tmp_path / "source"
     (source / "ssh" / ".ssh").mkdir(parents=True)

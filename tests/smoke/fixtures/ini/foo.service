@@ -1,0 +1,6 @@
+[Unit]
+Description=Smoke fixture
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/true

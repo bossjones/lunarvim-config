@@ -1,3 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
-printf '%s\n' smoke
+
+name=${1:-smoke}
+printf 'hello, %s\n' "$name"

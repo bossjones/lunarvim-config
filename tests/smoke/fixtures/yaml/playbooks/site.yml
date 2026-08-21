@@ -1,0 +1,9 @@
+---
+- name: Configure smoke host
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Touch marker
+      ansible.builtin.file:
+        path: /tmp/smoke
+        state: touch
