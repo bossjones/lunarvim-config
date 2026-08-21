@@ -1,6 +1,6 @@
 return {
   { path = "shell/script.sh", ft = "sh", parser = "bash", lsp = { "bashls" }, format = "shfmt" },
-  { path = "shell/.zshrc", ft = "zsh", parser = "bash", lsp = { "bashls" } },
+  { path = "shell/.zshrc", ft = "zsh", parser = "bash", lsp = { "bashls" }, format = "shfmt" },
   { path = "yaml/config.yaml", ft = "yaml", parser = "yaml", lsp = { "yamlls" } },
   { path = "yaml/playbooks/site.yml", ft = "yaml.ansible", parser = "yaml", lsp = { "ansiblels" } },
   { path = "yaml/deployment.yaml", ft = "yaml", parser = "yaml", lsp = { "yamlls" } },

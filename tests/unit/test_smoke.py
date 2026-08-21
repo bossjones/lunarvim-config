@@ -359,10 +359,11 @@ def test_timeout_returns_one(smoke, monkeypatch, tmp_path: Path):
     assert smoke.main(["--lvim", str(lvim), "--timeout", "1"]) == 1
 
 
-def test_missing_report_returns_one(smoke, tmp_path: Path):
+@pytest.mark.parametrize("mode", ["smoke", "e2e"])
+def test_missing_report_returns_one(smoke, tmp_path: Path, mode: str):
     lvim = write_lvim_stub(tmp_path, {}, write_report=False)
 
-    assert smoke.main(["--lvim", str(lvim), "--json"]) == 1
+    assert smoke.main(["--lvim", str(lvim), "--mode", mode, "--json"]) == 1
 
 
 def test_missing_lvim_returns_two(smoke, tmp_path: Path):

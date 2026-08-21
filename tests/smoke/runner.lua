@@ -95,6 +95,65 @@ local function selected_entries(entries)
   return selected
 end
 
+local function version_parts(version)
+  if type(version) == "table" then
+    return tonumber(version.major), tonumber(version.minor), tonumber(version.patch) or 0
+  end
+
+  local major, minor, patch = tostring(version):match("^(%d+)%.(%d+)%.?(%d*)")
+  if major == nil or minor == nil then
+    return nil, nil, nil
+  end
+  return tonumber(major), tonumber(minor), tonumber(patch) or 0
+end
+
+local function version_string(major, minor, patch)
+  return string.format("%d.%d.%d", major, minor, patch)
+end
+
+local function compare_versions(left, right)
+  for index = 1, 3 do
+    if left[index] < right[index] then
+      return -1
+    end
+    if left[index] > right[index] then
+      return 1
+    end
+  end
+  return 0
+end
+
+local function current_nvim_version()
+  local major, minor, patch = version_parts(vim.version())
+  if major == nil then
+    error("unable to parse Neovim version")
+  end
+  return { major, minor, patch }
+end
+
+local function version_check(entry, current_version)
+  local current = version_string(current_version[1], current_version[2], current_version[3])
+  if entry.min_nvim ~= nil then
+    local major, minor, patch = version_parts(entry.min_nvim)
+    if major == nil then
+      error("invalid min_nvim version: " .. tostring(entry.min_nvim))
+    end
+    if compare_versions(current_version, { major, minor, patch }) < 0 then
+      return check("version", "skip", "nvim version " .. current .. " is below minimum " .. tostring(entry.min_nvim))
+    end
+  end
+  if entry.max_nvim ~= nil then
+    local major, minor, patch = version_parts(entry.max_nvim)
+    if major == nil then
+      error("invalid max_nvim version: " .. tostring(entry.max_nvim))
+    end
+    if compare_versions(current_version, { major, minor, patch }) > 0 then
+      return check("version", "skip", "nvim version " .. current .. " is above maximum " .. tostring(entry.max_nvim))
+    end
+  end
+  return nil
+end
+
 local function message_snapshot()
   return vim.fn.execute("messages")
 end
@@ -175,6 +234,13 @@ local lsp_bins = {
   taplo = "taplo",
   vale_ls = "vale-ls",
   yamlls = "yaml-language-server",
+}
+
+local formatter_bins = {
+  jsonls = lsp_bins.jsonls,
+  ruff = lsp_bins.ruff,
+  shfmt = "shfmt",
+  stylua = "stylua",
 }
 
 local function attached_client_names(bufnr)
@@ -303,9 +369,39 @@ local function formatting_clients_for(bufnr)
   return clients
 end
 
-local function format_check(entry, bufnr, requested_path)
+local function format_on_save_applies(path)
+  local config = type(lvim) == "table" and lvim.format_on_save
+  if type(config) ~= "table" or config.enabled ~= true or type(config.pattern) ~= "table" then
+    return false
+  end
+
+  for _, pattern in ipairs(config.pattern) do
+    if type(pattern) == "string" and vim.fn.match(path, vim.fn.glob2regpat(pattern)) >= 0 then
+      return true
+    end
+  end
+  return false
+end
+
+local function unavailable_formatter_check(name, binary, mode)
+  local status = mode == "smoke" and "skip" or "fail"
+  return check("format", status, string.format("formatter=%s unavailable: %s not installed", name, binary))
+end
+
+local function format_check(entry, bufnr, requested_path, mode)
   if type(entry.format) ~= "string" or entry.format == "" then
     return nil
+  end
+  if not format_on_save_applies(entry.path) then
+    return nil
+  end
+
+  local formatter_bin = formatter_bins[entry.format]
+  if formatter_bin == nil then
+    return unavailable_formatter_check(entry.format, "no executable mapping", mode)
+  end
+  if vim.fn.executable(formatter_bin) == 0 then
+    return unavailable_formatter_check(entry.format, formatter_bin, mode)
   end
 
   local waited = vim.wait(5000, function()
@@ -362,7 +458,12 @@ local function format_check(entry, bufnr, requested_path)
   return check("format", status, with_message_evidence(message, messages))
 end
 
-local function run_fixture(root, entry, mode)
+local function run_fixture(root, entry, mode, current_version)
+  local skipped_for_version = version_check(entry, current_version)
+  if skipped_for_version ~= nil then
+    return { path = entry.path, ft_got = "", checks = { skipped_for_version } }
+  end
+
   local path = root .. "/" .. entry.path
   local requested_path = vim.fn.fnamemodify(path, ":p")
   local checks = {}
@@ -417,7 +518,7 @@ local function run_fixture(root, entry, mode)
   end
   table.insert(checks, edit_check(bufnr, expected_lines))
 
-  local format_result = format_check(entry, bufnr, requested_path)
+  local format_result = format_check(entry, bufnr, requested_path, mode)
   if format_result ~= nil then
     table.insert(checks, format_result)
   end
@@ -428,13 +529,14 @@ end
 local function run()
   local root = require_string("SMOKE_ROOT", SMOKE_ROOT)
   local mode = require_string("SMOKE_MODE", SMOKE_MODE)
+  local current_version = current_nvim_version()
   local results = {}
 
   for _, entry in ipairs(selected_entries(load_manifest())) do
-    table.insert(results, run_fixture(root, entry, mode))
+    table.insert(results, run_fixture(root, entry, mode, current_version))
   end
 
-  return { results = results }
+  return { nvim = version_string(current_version[1], current_version[2], current_version[3]), results = results }
 end
 
 local ok, result = xpcall(run, function(err)

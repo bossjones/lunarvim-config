@@ -274,7 +274,7 @@ should reproduce all of these on first run:
   allows comments).
 - `tests/smoke/fixtures/**/*.formatted` (optional, phase 3) — golden outputs for
   format checks (`script.sh.formatted`, `init.lua.formatted`, `main.py.formatted`).
-- `script/smoke.py` — orchestrator (`uv run script/smoke.py [--target DIR] [--only GLOB] [--timeout N] [--json]`).
+- `script/smoke.py` — orchestrator (`uv run script/smoke.py [--target DIR] [--only GLOB] [--timeout N] [--json] [--keep] [--verbose]`).
 - `tests/unit/test_smoke.py` — unit tests for `smoke.py`.
 - `tests/testinfra/test_e2e.py` — runs the suite in the Docker image.
 
