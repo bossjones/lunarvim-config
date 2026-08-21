@@ -274,13 +274,15 @@ should reproduce all of these on first run:
   tests of a `uv run` script.
 - `script/install.py`, `script/doctor.py` — precedent for PEP 723 `uv run` scripts
   with `rich` tables and exit-code contracts; `smoke.py` mirrors them.
-- `Makefile` — add `smoke`, `deploy-smoke`, and `e2e` targets; wire `e2e` (not
-  active-system `smoke`) into `test-all`.
+- `Makefile` — add `smoke`, `deploy-smoke`, and `e2e` targets; defer wiring strict
+  `e2e` (not active-system `smoke`) into `test-all` until the separately approved
+  green follow-up resolves every enumerated strict baseline.
 - `Dockerfile` — already `COPY . .` so fixtures are in the image; ensure
   `TSInstallSync` list covers parsers the manifest expects (`make`, `markdown`,
   `gitignore`, `xml` is N/A on 0.9).
-- `.github/workflows/ci.yml` — `docker-validate` job: add a `make smoke`-in-container
-  step.
+- `.github/workflows/ci.yml` — defer the `docker-validate` job's blocking strict
+  `make e2e` step until the separately approved green follow-up resolves every
+  enumerated strict baseline.
 - `CLAUDE.md` — document the feedback loop.
 - `specs/install.md` — cross-link: deploy → smoke.
 - `pyproject.toml` — `testpaths` currently only `tests/testinfra`; `test-unit` passes
