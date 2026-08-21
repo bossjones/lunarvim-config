@@ -49,14 +49,19 @@ end
 local function highlight_check(entry, bufnr)
   if entry.parser then
     local has_parser = require("nvim-treesitter.parsers").has_parser(entry.parser)
+    local start_ok, start_err = true, nil
     if has_parser then
-      pcall(vim.treesitter.start, bufnr, entry.parser)
+      start_ok, start_err = pcall(vim.treesitter.start, bufnr, entry.parser)
     end
     local active = vim.wait(1000, function()
       return has_active_highlighter(bufnr)
     end, 25)
-    return check("highlight", has_parser and active and "pass" or "fail",
-      string.format("parser=%s highlighter=%s", tostring(has_parser), tostring(active)))
+    local status = has_parser and start_ok and active and "pass" or "fail"
+    local message = string.format("parser=%s highlighter=%s", tostring(has_parser), tostring(active))
+    if not start_ok then
+      message = message .. " treesitter start error: " .. tostring(start_err)
+    end
+    return check("highlight", status, message)
   end
 
   local active = vim.wait(500, function()
@@ -99,21 +104,49 @@ local function new_messages(snapshot)
   return vim.trim(current)
 end
 
-local function with_messages(message, snapshot)
-  local extra = new_messages(snapshot)
-  if extra == "" then
+local function with_message_evidence(message, messages)
+  if messages == "" then
     return message
   end
-  return message .. "\nmessages:\n" .. extra
+  return message .. "\nmessages:\n" .. messages
 end
 
-local function has_error_messages(messages)
-  return messages ~= ""
-    and (
-      messages:match("[Ee]rror")
-      or messages:match("Failed to")
-      or messages:match("E%d+:")
-    ) ~= nil
+local function with_messages(message, snapshot)
+  return with_message_evidence(message, new_messages(snapshot))
+end
+
+local runtime_message_patterns = {
+  { pattern = "E%d+:", label = "runtime error", category = "generic" },
+  { pattern = "stack traceback", label = "runtime traceback", category = "traceback" },
+  { pattern = "[Rr][Pp][Cc]", label = "rpc failure", category = "rpc" },
+  { pattern = "[Ss]erver exited", label = "server exited", category = "rpc" },
+  { pattern = "Client %d+ quit", label = "client quit", category = "rpc" },
+  { pattern = "bad argument", label = "runtime error", category = "generic" },
+  { pattern = "invalid node type", label = "runtime error", category = "generic" },
+  { pattern = "Failed to", label = "runtime error", category = "generic" },
+  { pattern = "[Ee]rror", label = "runtime error", category = "generic" },
+}
+
+local function classify_runtime_messages(messages)
+  if messages == "" then
+    return nil
+  end
+
+  for _, candidate in ipairs(runtime_message_patterns) do
+    for line in vim.gsplit(messages, "\n", true) do
+      local trimmed = vim.trim(line)
+      if trimmed ~= "" and trimmed:match(candidate.pattern) then
+        return {
+          label = candidate.label,
+          category = candidate.category,
+          summary = trimmed,
+          evidence = messages,
+        }
+      end
+    end
+  end
+
+  return nil
 end
 
 local function clients_for(bufnr)
@@ -201,21 +234,17 @@ local function lsp_checks(entry, bufnr, mode)
   end
 
   local lsp_messages = new_messages(lsp_snapshot)
-  local unhealthy_message = lsp_messages ~= ""
-      and (
-        lsp_messages:match("[Ss]erver exited")
-        or lsp_messages:match("[Rr][Pp][Cc]")
-        or lsp_messages:match("Client %d+ quit")
-      ) ~= nil
-    or false
+  local lsp_issue = classify_runtime_messages(lsp_messages)
 
-  local healthy_status = (#stopped_clients == 0 and not unhealthy_message) and "pass" or "fail"
+  local lsp_runtime_failure = lsp_issue ~= nil and lsp_issue.category == "rpc"
+  local healthy_status = (#stopped_clients == 0 and not lsp_runtime_failure) and "pass" or "fail"
   local healthy_message = "clients healthy"
   if #stopped_clients > 0 then
     healthy_message = "stopped=" .. joined_names(stopped_clients)
   end
-  if unhealthy_message then
-    healthy_message = with_messages(healthy_message, lsp_snapshot)
+  if lsp_runtime_failure then
+    healthy_message = lsp_issue.label .. ": " .. lsp_issue.summary
+    healthy_message = with_message_evidence(healthy_message, lsp_issue.evidence)
   elseif #attached_names > 0 then
     healthy_message = healthy_message .. " (" .. joined_names(attached_names) .. ")"
   end
@@ -236,12 +265,16 @@ local function edit_check(bufnr, expected_lines)
   end)
   local restored = vim.deep_equal(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), expected_lines)
   local messages = new_messages(edit_snapshot)
-  local status = ok and edited and restored and not has_error_messages(messages) and "pass" or "fail"
+  local message_issue = classify_runtime_messages(messages)
+  local status = ok and edited and restored and message_issue == nil and "pass" or "fail"
   local message = restored and "insert/undo restored buffer" or "insert/undo did not restore original buffer"
   if not ok then
     message = message .. " error=" .. tostring(err)
   end
-  return check("edit", status, with_messages(message, edit_snapshot))
+  if message_issue ~= nil then
+    message = message_issue.label .. ": " .. message_issue.summary
+  end
+  return check("edit", status, with_message_evidence(message, messages))
 end
 
 local function client_supports_formatting(client)
@@ -251,14 +284,14 @@ local function client_supports_formatting(client)
   return client.server_capabilities and client.server_capabilities.documentFormattingProvider or false
 end
 
-local function formatting_client_names(bufnr)
-  local names = {}
+local function formatting_clients_for(bufnr)
+  local clients = {}
   for _, client in ipairs(clients_for(bufnr)) do
     if client_supports_formatting(client) then
-      table.insert(names, client.name)
+      table.insert(clients, client)
     end
   end
-  return names
+  return clients
 end
 
 local function format_check(entry, bufnr, requested_path)
@@ -266,9 +299,27 @@ local function format_check(entry, bufnr, requested_path)
     return nil
   end
 
-  vim.wait(5000, function()
-    return #formatting_client_names(bufnr) > 0
+  local waited = vim.wait(5000, function()
+    return #formatting_clients_for(bufnr) > 0
   end, 50)
+  local formatting_clients = formatting_clients_for(bufnr)
+  local formatting_client = formatting_clients[1]
+  if not waited or formatting_client == nil then
+    local attached = {}
+    for _, client in ipairs(clients_for(bufnr)) do
+      table.insert(attached, client.name)
+    end
+    return check(
+      "format",
+      "fail",
+      string.format(
+        "formatter=%s formatting client missing after wait=%s attached=%s",
+        entry.format,
+        tostring(waited),
+        joined_names(attached)
+      )
+    )
+  end
 
   local format_snapshot = message_snapshot()
   local ok, err = pcall(function()
@@ -276,6 +327,7 @@ local function format_check(entry, bufnr, requested_path)
     vim.lsp.buf.format { async = false, timeout_ms = 5000, bufnr = bufnr }
   end)
   local messages = new_messages(format_snapshot)
+  local message_issue = classify_runtime_messages(messages)
   local formatted_path = requested_path .. ".formatted"
   local has_formatted = vim.fn.filereadable(formatted_path) == 1
   local matches_formatted = true
@@ -286,15 +338,19 @@ local function format_check(entry, bufnr, requested_path)
     )
   end
 
-  local status = ok and matches_formatted and not has_error_messages(messages) and "pass" or "fail"
-  local message = "formatter=" .. entry.format
+  local status = ok and matches_formatted and message_issue == nil and "pass" or "fail"
+  local message = string.format("formatter=%s client=%s", entry.format, formatting_client.name)
   if has_formatted then
     message = message .. " baseline_match=" .. tostring(matches_formatted)
   end
   if not ok then
     message = message .. " error=" .. tostring(err)
   end
-  return check("format", status, with_messages(message, format_snapshot))
+  if message_issue ~= nil then
+    message = message_issue.label .. ": " .. message
+      .. " cause=" .. message_issue.summary
+  end
+  return check("format", status, with_message_evidence(message, messages))
 end
 
 local function run_fixture(root, entry, mode)
@@ -310,13 +366,17 @@ local function run_fixture(root, entry, mode)
 
   local open_snapshot = message_snapshot()
   local opened, err = pcall(vim.cmd.edit, vim.fn.fnameescape(requested_path))
+  local open_messages = new_messages(open_snapshot)
+  local open_issue = classify_runtime_messages(open_messages)
   local current_path = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(0), ":p")
   local buffer_lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
   local path_matches = current_path == requested_path
   local content_matches = readable and vim.deep_equal(buffer_lines, expected_lines)
-  local open_status = readable and opened and path_matches and content_matches and "pass" or "fail"
+  local open_status = readable and opened and path_matches and content_matches and open_issue == nil and "pass" or "fail"
   local open_message
-  if open_status == "pass" then
+  if open_issue ~= nil then
+    open_message = "runtime error during open: " .. open_issue.summary
+  elseif open_status == "pass" then
     open_message = string.format("readable file loaded into buffer with matching content (%d lines)", #buffer_lines)
   else
     open_message = string.format(
@@ -329,7 +389,7 @@ local function run_fixture(root, entry, mode)
       opened and "" or tostring(err)
     )
   end
-  table.insert(checks, check("opens", open_status, with_messages(open_message, open_snapshot)))
+  table.insert(checks, check("opens", open_status, with_message_evidence(open_message, open_messages)))
 
   local ft_got = vim.bo.filetype
   table.insert(
