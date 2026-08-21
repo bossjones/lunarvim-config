@@ -78,7 +78,7 @@
 **Files:**
 - Create: `tests/unit/test_smoke.py`
 - Modify: `tests/unit/conftest.py`
-- Modify: `tests/smoke/fixtures/shell/script.sh`
+- Create: `tests/smoke/fixtures/shell/script.sh`
 - Create: `script/smoke.py`
 
 **Interfaces:**
@@ -434,7 +434,8 @@ return {
   { path = "ini/foo.service", ft = "systemd", parser = "ini" },
   { path = "ssh/.ssh/config", ft = "sshconfig", syntax = true },
   { path = "log/app.log", ft = "log", syntax = true },
-  { path = "text/notes.txt", ft = "text", syntax = true, lsp = { "vale_ls" } },
+  { path = "text/notes.txt", ft = "text", syntax = true,
+    note = "No Vale LSP expectation: it is not provisioned in the strict image." },
   { path = "json/data.json", ft = "json", parser = "json", lsp = { "jsonls" }, format = "jsonls" },
   { path = "json/package.json", ft = "json", parser = "json", lsp = { "jsonls" }, format = "jsonls" },
   { path = "json/tsconfig.json", ft = "jsonc", parser = "jsonc", lsp = { "jsonls" }, format = "jsonls" },
@@ -719,7 +720,7 @@ def test_manifest_parser_installed(run_lua, parser):
 
 - [ ] **Step 2: Verify RED**
 
-Run: `uv run pytest tests/testinfra/test_binaries.py -v`
+Run: `make docker-build && uv run pytest tests/testinfra/test_binaries.py -v`
 
 Expected: fail for newly required Ansible package and any missing parser before Dockerfile changes.
 
@@ -742,7 +743,7 @@ is red. The later green follow-up adds it to `test-all` without an allow-failure
 
 - [ ] **Step 4: Verify GREEN**
 
-Run: `uv run pytest tests/testinfra/test_binaries.py -v`
+Run: `make docker-build && uv run pytest tests/testinfra/test_binaries.py -v`
 
 Expected: all manifest-provisioning assertions pass.
 
