@@ -11,7 +11,7 @@ import argparse
 import json
 import shutil
 import subprocess
-import uuid
+import tempfile
 from pathlib import Path
 
 
@@ -21,7 +21,6 @@ def _repo_root() -> Path:
 
 FIXTURES_DIR = _repo_root() / "tests" / "smoke" / "fixtures"
 RUNNER = _repo_root() / "tests" / "smoke" / "runner.lua"
-WORK_DIR = _repo_root() / ".smoke-work"
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -73,16 +72,10 @@ def report_exit_code(report: dict[str, object]) -> int:
     return 0
 
 
-def _make_run_root() -> Path:
-    root = WORK_DIR / f"lvim-smoke-{uuid.uuid4().hex}"
-    root.mkdir(parents=True, exist_ok=False)
-    return root
-
-
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    root = _make_run_root()
-    try:
+    with tempfile.TemporaryDirectory(prefix="lvim-smoke-") as raw_root:
+        root = Path(raw_root)
         fixture_root = stage_fixtures(FIXTURES_DIR, root)
         report_path = root / "report.json"
         subprocess.run(
@@ -95,12 +88,6 @@ def main(argv: list[str] | None = None) -> int:
         if args.json:
             print(json.dumps(report, sort_keys=True))
         return report_exit_code(report)
-    finally:
-        shutil.rmtree(root, ignore_errors=True)
-        try:
-            WORK_DIR.rmdir()
-        except OSError:
-            pass
 
 
 if __name__ == "__main__":
