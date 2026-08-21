@@ -237,7 +237,11 @@ def test_render_report_contains_fixture_and_check_status(smoke):
                             "status": "skip",
                             "message": "nvim version 0.9.5 does not support leap.nvim",
                         },
+                        {"name": "highlight", "status": "pass", "message": "parser=true highlighter=true"},
                         {"name": "lsp", "status": "fail", "message": "bashls missing"},
+                        {"name": "lsp_healthy", "status": "pass", "message": "clients healthy (bashls)"},
+                        {"name": "edit", "status": "pass", "message": "insert/undo restored buffer"},
+                        {"name": "format", "status": "fail", "message": "formatter=shfmt"},
                     ],
                 }
             ]
@@ -249,7 +253,11 @@ def test_render_report_contains_fixture_and_check_status(smoke):
     assert "shell/script.sh" in output
     assert "opens" in output
     assert "version-gated" in output
+    assert "highlight" in output
     assert "lsp" in output
+    assert "lsp_healthy" in output
+    assert "edit" in output
+    assert "format" in output
     assert "pass" in output
     assert "skip" in output
     assert "fail" in output
