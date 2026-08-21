@@ -125,7 +125,7 @@ make test-testinfra  # testinfra suite against the Docker image
 make docker-lint     # luacheck inside Docker (use this if local luacheck is broken)
 make smoke           # active-system post-deploy smoke suite; missing local tools are reported as skips
 make deploy-smoke    # deploy then run the active-system smoke suite
-make e2e             # strict Docker smoke suite for Neovim 0.9.5
+make e2e             # strict Docker smoke suite for Neovim 0.9.5; intentionally nonzero at baseline
 ```
 
 ### Smoke feedback loop
@@ -139,6 +139,20 @@ when the real runtime behavior is fixed.
 The headless runner sets `lines` and `columns` to provide stable window geometry.
 It writes its machine-readable report to a file for `script/smoke.py` to read, rather
 than emitting JSON with `io.write`, because headless runtime output can mix with stdout.
+
+### Strict e2e baseline
+
+The current strict Docker result is intentionally nonzero and the active config must
+remain unchanged in this baseline-only work. The authoritative fixture/check evidence,
+rationale, and green gate are in
+[`specs/smoke-test.md`](specs/smoke-test.md#intentional-red-baseline-and-ci-policy);
+it covers shell formatting, Ansible LSP, log/text syntax, Lua runtime/formatting, and
+the legitimate `just/*` version skips. Keep every failure visible in the runner report:
+do not invert assertions, accept a runner crash, or add `e2e` to `test-all` or CI.
+
+The separate green follow-up resolves every in-range failure from that policy, rechecks
+the legitimate version skips, and proves a zero-exit `make e2e` before adding the
+blocking `test-all` and CI wiring. It must not use `continue-on-error`.
 
 ## Gotchas learned the hard way
 

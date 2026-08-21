@@ -19,7 +19,7 @@ Build a **fixture-driven file-opening test** with **two tiers that share one eng
 
 | Tier | Command | Where it runs | Purpose |
 |---|---|---|---|
-| **e2e** | `make e2e` | Inside the Docker image (nvim 0.9.5, LunarVim 1.3, Mason servers baked in) | Hermetic, reproducible, runs in CI on every PR. Validates the config against the **pinned** runtime. **Strict**: every expected LSP binary is present in the image, so a missing attach is a *failure*, never a skip. |
+| **e2e** | `make e2e` | Inside the Docker image (nvim 0.9.5, LunarVim 1.3, Mason servers baked in) | Hermetic, reproducible validation of the **pinned** runtime. **Strict**: every expected LSP binary is present in the image, so a missing attach is a *failure*, never a skip. It remains outside CI and `test-all` while the documented baseline is red; it becomes blocking only after the green follow-up. |
 | **smoke** | `make smoke` (or `make deploy-smoke`) | On the **active system**: the real `~/.config/lvim` deploy, the real local `lvim`/nvim (0.11.x today), the real Mason/uv/brew tool state | The post-deploy feedback loop for the user (and for Claude after editing the config). **Tolerant of environment drift**: a missing LSP binary is reported as `skip(<bin> not installed)` and surfaced in the summary, not a failure. |
 
 Both tiers open a committed corpus of representative files one by one and assert, per
@@ -35,8 +35,8 @@ When complete:
 
 1. `make deploy-smoke` is the one-command feedback loop on the active system. It exits
    non-zero with a readable table of **which fixture failed which check and why**.
-1b. `make e2e` runs the same corpus inside the Docker image (strict mode) and is wired
-   into CI, so a regression against the pinned 0.9.5 runtime blocks the PR.
+1b. `make e2e` runs the same corpus inside the Docker image in strict mode. It is wired
+   into CI only after the documented strict baseline is fully green.
 2. Fixtures for every filetype the user regularly opens live in
    `tests/smoke/fixtures/` and are committed.
 3. One engine (`runner.lua` + `manifest.lua` + `smoke.py`) serves both tiers; the only
@@ -44,8 +44,8 @@ When complete:
    dir, and where it executes.
 4. `CLAUDE.md` instructs Claude to run the loop after any change to `config.lua`,
    `ftplugin/`, `ftdetect/`, `after/`, or `lsp-settings/`.
-5. The three bugs found by the probe are reproduced by the suite on day one (red),
-   then fixed in follow-up work (green).
+5. The documented strict baseline is reproduced by visible fixture/check reports, then
+   fixed in a separately approved green follow-up.
 6. Every production behavior in the runner, orchestrator, Make targets, Docker image,
    and config fixes is implemented with test-driven development: write one focused
    behavior test, run it to observe the expected failure, make the minimal change,
@@ -160,17 +160,38 @@ the implementation already exists.
 
 ### Intentional-red baseline and CI policy
 
-The initial local failures for none-ls, `log`, and `just` are required evidence that
-the suite detects the motivating regressions. They are a **pre-fix TDD baseline**, not
-a state that may be hidden, inverted, or accepted by CI. A blocking `make e2e` CI step
-must be introduced only in the change that turns every in-range e2e fixture green.
+This is the authoritative current baseline for the pinned Neovim 0.9.5 Docker runtime.
+It was reconciled against an actual full `make e2e` report on 2026-08-21. The
+testinfra contracts assert the runner's real report—not a process crash, missing JSON,
+or opaque nonzero exit—as evidence for each outcome.
 
-If the config fixes remain separate follow-up work, the initial smoke-suite PR includes
-the fixtures, runner, orchestrator, unit tests, and testinfra test but does **not** add
-the failing `make e2e` command to the blocking workflow. Each follow-up starts by
-rerunning the relevant red fixture, fixes it, and finishes green; the final follow-up
-adds the CI step after `make e2e` exits zero. Never whitelist known regressions or make
-the CI command succeed while the runner reports failures.
+| Fixture(s) | Expected strict report | Why it remains in this baseline |
+|---|---|---|
+| `shell/script.sh` | `format=fail`; its classified runtime message includes `formatter=shfmt`, a formatting client, and `str_utfindex`. `opens`, `filetype`, `highlight`, `lsp`, `lsp_healthy`, and `edit` remain `pass`. | The 0.9.5 none-ls formatting path has a `str_utfindex`-type compatibility failure. |
+| `yaml/playbooks/site.yml` | `lsp=fail` with `missing=ansiblels`; `lsp_healthy=pass`; `opens`, `filetype`, `highlight`, and `edit` remain `pass`. | The expected `ansiblels` client does not attach in the strict image. |
+| `log/app.log` | `ft_got=""`; `filetype=fail` (`expected log, got`); `highlight=fail` (`builtin syntax=nil`); `opens` and `edit` remain `pass`. | The active filetype/syntax path does not establish the expected `log` type or its builtin syntax. |
+| `text/notes.txt` | `filetype=pass` (`text`), but `highlight=fail` with `builtin syntax=nil`; `opens` and `edit` remain `pass`. | The expected builtin text syntax highlight is unavailable. |
+| `lua/init.lua` | `opens=fail` and `highlight=fail`, each preserving an `invalid node type` error for language `lua`; `filetype` and `edit` remain `pass`. `format=fail` contains the none-ls `str_utfindex` discriminator. | The pinned Lua treesitter query/runtime is incompatible, and the same none-ls formatter path fails. |
+| `just/justfile`, `just/.justfile` | Each produces only `version=skip`: `nvim version 0.9.5 is below minimum 0.10`. | These are legitimate, tested version-range skips, not failures; the fixtures are intentionally out of range on the pinned runtime. |
+
+The failure rows—not the legitimate `just/*` skips—make strict `make e2e` nonzero.
+They are a **pre-fix TDD baseline**, not a state that may be hidden, inverted, accepted
+as a runner crash, whitelisted, or made green by relaxing checks. This baseline-only
+change leaves active configuration, Docker provisioning, CI, and `test-all` unchanged.
+
+The separately approved green follow-up must first use the focused fixture contracts to
+resolve every failure row above: the none-ls formatter compatibility failure, the
+`ansiblels` attachment failure, `log` filetype and syntax, text builtin syntax, and the
+Lua treesitter and formatter failures. It must also revalidate that both `just/*`
+fixtures retain their legitimate 0.9.5 version skips. Only after all in-range checks
+pass, the full `make e2e` exits zero (with only those version skips), and the focused
+contracts are made green without inverted assertions may that follow-up add `e2e` to
+`test-all` and a blocking CI workflow step. It must not use `continue-on-error`.
+
+TDD remains mandatory: each eventual runtime/config repair starts from a focused,
+observed failing fixture check and ends green. A detection contract that passes while
+asserting a known runtime `fail` is honest baseline evidence, not a fabricated red or
+proof that the runtime regression is fixed.
 
 **Per-fixture checks (runner.lua):**
 
@@ -287,8 +308,9 @@ before adding the smallest `smoke.py` behavior needed to make it green. Commit t
 fixture corpus and a manifest describing what *should* happen. For every runner check,
 write its real-runner e2e assertion first, observe the expected failure, then implement
 only `opens`, `filetype`, `highlight`, or `lsp` behavior needed for that assertion.
-Run the runner by hand against the local deploy; confirm it reports the three probe
-findings as failures. No config fixes yet — the suite must prove it can see the bugs.
+Run the runner by hand against the local deploy; confirm it reports the documented
+baseline findings as failures. No config fixes yet — the suite must prove it can see
+the bugs.
 
 ### Phase 2: TDD core — `script/smoke.py` + Make targets + unit tests
 
@@ -511,12 +533,12 @@ IMPORTANT: Execute every step in order, top to bottom.
 
 - Run `make deploy-smoke` locally (nvim 0.11.3): expect failures for none-ls
   (`opens` on every LSP-attached fixture), `log/app.log` + `just/*` (`filetype`).
-- Run `make e2e` (0.9.5): expect `just/*` skipped (`min_nvim`), none-ls passing
-  (0.9 has the field), `log` failing, and **no** `not installed` skips (else fix the
-  Dockerfile).
+- Run `make e2e` (0.9.5): expect exactly the strict baseline in
+  [Intentional-red baseline and CI policy](#intentional-red-baseline-and-ci-policy):
+  failures are visible and `just/*` is version-skipped. Do not accept any additional
+  failure, non-version skip, runner error, or missing report as baseline evidence.
 - Record the failing fixture list in the PR description. Each follow-up begins by
-  rerunning its affected fixture red, then applies the smallest fix (`fix(none-ls):
-  pin nvim-0.11-compatible commit`, `feat(ft): detect justfile/log`) and proves the
+  rerunning its affected fixture red, applies the smallest fix, and proves the
   fixture green in its focused run and relevant full tier. The final follow-up must
   make `make e2e` green before it adds the blocking CI step.
 - Run `make test-unit`, `luacheck tests/smoke --globals lvim vim SMOKE_ROOT SMOKE_OUT SMOKE_ONLY`
@@ -565,11 +587,11 @@ IMPORTANT: Execute every step in order, top to bottom.
       image; CI `docker-validate` runs `--mode e2e` only after the strict suite is
       green.
 - [ ] `tests/unit/test_smoke.py` passes without Neovim installed.
-- [ ] Before config fixes, the suite is observed to fail for: none-ls
-      `_request_name_to_capability` (local 0.11), `log/app.log` filetype, and
-      `just/*` filetype — proving it detects the bugs that motivated it. After each
-      fix, the corresponding focused test is observed green; strict e2e is fully green
-      before its CI step is enabled.
+- [ ] Before config fixes, strict e2e reports exactly the current failures and
+      version skips in [Intentional-red baseline and CI
+      policy](#intentional-red-baseline-and-ci-policy), with a per-fixture check,
+      status, and discriminator. After each fix, the corresponding focused test is
+      observed green; strict e2e is fully green before its CI step is enabled.
 - [ ] No production behavior is added without a focused test that was first observed
       failing for the intended reason; no test relies on source-text inspection or
       mock-interaction assertions.
@@ -583,9 +605,9 @@ IMPORTANT: Execute every step in order, top to bottom.
 - `uv run script/smoke.py --only 'shell/*' --keep` — filtered run; inspect staging dir.
 - `uv run script/smoke.py --json | python3 -m json.tool` — machine-readable report is valid JSON.
 - `make test-unit` — unit tests for `smoke.py` pass.
-- `make e2e` — strict Docker e2e tier. Before config fixes, capture its expected red
-  `log` result as TDD evidence; before CI is enabled, it must be green with only
-  legitimate version skips and zero missing-binary skips.
+- `make e2e` — strict Docker e2e tier. Before config fixes, it must reproduce only the
+  documented baseline; before CI is enabled, it must be green with only legitimate
+  version skips and zero missing-binary skips.
 - `make test-testinfra` — Docker suite including `test_e2e.py`.
 - `luacheck tests/smoke --globals lvim vim SMOKE_ROOT SMOKE_OUT SMOKE_ONLY && stylua --check tests/smoke` — Lua lint/format (or `make docker-lint`).
 - `uv run ruff check script/smoke.py` — Python lint.
@@ -605,7 +627,7 @@ IMPORTANT: Execute every step in order, top to bottom.
 - The manifest intentionally lives in Lua (not JSON) so it can express
   `only_if_executable` and version guards without a second parser; `smoke.py` never
   reads it directly — it only reads the runner's JSON report.
-- Follow-up work queued by this plan (separate PRs, each validated by the suite):
-  1. Pin none-ls to an nvim-0.11-compatible commit (verify it still loads on 0.9.5 in Docker, or gate by version).
-  2. `vim.filetype.add` for `just`/`justfile`/`.justfile` → `just` and `*.log` → `log`; add `just` + `log` treesitter parsers if available on the pin, else rely on `after/syntax/log.vim`.
-  3. Investigate the `BufWinEnter *` `E36` source (likely alpha/indentlines) — harmless in a real terminal, but worth a headless guard.
+- The approved green follow-up scope is defined once in
+  [Intentional-red baseline and CI policy](#intentional-red-baseline-and-ci-policy).
+  It resolves every in-range strict failure there, preserves the legitimate `just/*`
+  version skips, then enables `test-all` and CI only after a zero-exit `make e2e`.
