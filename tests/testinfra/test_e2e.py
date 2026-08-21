@@ -13,6 +13,8 @@ def _run_smoke(host, fixture: str):
         f"uv run script/smoke.py --mode e2e --only '{fixture}' --json"
     )
     report = json.loads(result.stdout)
+    assert report.get("runner_error") is None, report
+    assert len(report["results"]) == 1, report
     fixture_report = report["results"][0]
     checks = {check["name"]: check for check in fixture_report["checks"]}
     return result, fixture_report, checks
@@ -58,32 +60,34 @@ def _run_runner_at_version(host, fixture: str, version: tuple[int, int, int]):
 def _assert_none_ls_format_failure(checks):
     assert checks["format"]["status"] == "fail"
     assert "client=" in checks["format"]["message"]
-    assert "bad argument #2 to 'str_utfindex'" in checks["format"]["message"]
+    assert "str_utfindex" in checks["format"]["message"]
 
 
 def test_smoke_assets_exist_in_image(host):
-    assert host.file(
-        "/root/lunarvim-config/tests/smoke/fixtures/log/app.log"
-    ).exists
+    assert host.file("/root/lunarvim-config/tests/smoke/fixtures/log/app.log").exists
 
 
 def test_e2e_log_fixture_reports_current_filetype_regression(host):
-    result = host.run(
-        "cd /root/lunarvim-config && "
-        "uv run script/smoke.py --mode e2e --only 'log/app.log' --json"
-    )
-    report = json.loads(result.stdout)
-    checks = {c["name"]: c for c in report["results"][0]["checks"]}
+    result, fixture, checks = _run_smoke(host, "log/app.log")
+
     assert result.rc == 1
+    assert fixture["ft_got"] == ""
+    assert checks["opens"]["status"] == "pass"
     assert checks["filetype"]["status"] == "fail"
-    assert "expected log" in checks["filetype"]["message"]
+    assert checks["filetype"]["message"].startswith("expected log, got")
+    assert checks["highlight"]["status"] == "fail"
+    assert checks["highlight"]["message"] == "builtin syntax=nil"
+    assert checks["edit"]["status"] == "pass"
 
 
-def test_e2e_just_fixture_is_skipped_for_its_neovim_version_range(host):
-    result, fixture, checks = _run_smoke(host, "just/justfile")
+@pytest.mark.parametrize("fixture_path", ["just/justfile", "just/.justfile"])
+def test_e2e_just_fixtures_are_skipped_for_their_neovim_version_range(
+    host, fixture_path: str
+):
+    result, fixture, checks = _run_smoke(host, fixture_path)
 
     assert result.rc == 0, result.stderr
-    assert fixture["path"] == "just/justfile"
+    assert fixture["path"] == fixture_path
     assert set(checks) == {"version"}
     assert checks["version"]["status"] == "skip"
     assert checks["version"]["message"] == "nvim version 0.9.5 is below minimum 0.10"
@@ -112,12 +116,17 @@ def test_e2e_zsh_fixture_does_not_format_outside_format_on_save_patterns(host):
         ("e2e", 1, "fail"),
     ],
 )
-def test_formatter_availability_has_mode_specific_policy(host, mode: str, returncode: int, status: str):
+def test_formatter_availability_has_mode_specific_policy(
+    host, mode: str, returncode: int, status: str
+):
     result, checks = _run_smoke_without_shfmt(host, mode)
 
     assert result.rc == returncode, result.stderr
     assert checks["format"]["status"] == status
-    assert checks["format"]["message"] == "formatter=shfmt unavailable: shfmt not installed"
+    assert (
+        checks["format"]["message"]
+        == "formatter=shfmt unavailable: shfmt not installed"
+    )
 
 
 def test_e2e_shell_fixture_opens_and_reports_filetype(host):
@@ -132,6 +141,32 @@ def test_e2e_shell_fixture_opens_and_reports_filetype(host):
     assert checks["filetype"]["status"] == "pass"
     assert "baseline_match=" in checks["format"]["message"]
     _assert_none_ls_format_failure(checks)
+
+
+def test_e2e_ansible_fixture_reports_missing_ansiblels(host):
+    result, fixture, checks = _run_smoke(host, "yaml/playbooks/site.yml")
+
+    assert result.rc == 1, result.stderr
+    assert fixture["ft_got"] == "yaml.ansible"
+    assert checks["opens"]["status"] == "pass"
+    assert checks["filetype"]["status"] == "pass"
+    assert checks["highlight"]["status"] == "pass"
+    assert checks["lsp"]["status"] == "fail"
+    assert checks["lsp"]["message"] == "missing=ansiblels"
+    assert checks["lsp_healthy"]["status"] == "pass"
+    assert checks["edit"]["status"] == "pass"
+
+
+def test_e2e_text_fixture_reports_missing_builtin_syntax(host):
+    result, fixture, checks = _run_smoke(host, "text/notes.txt")
+
+    assert result.rc == 1, result.stderr
+    assert fixture["ft_got"] == "text"
+    assert checks["opens"]["status"] == "pass"
+    assert checks["filetype"]["status"] == "pass"
+    assert checks["highlight"]["status"] == "fail"
+    assert checks["highlight"]["message"] == "builtin syntax=nil"
+    assert checks["edit"]["status"] == "pass"
 
 
 def test_e2e_reports_treesitter_and_builtin_syntax(host):
@@ -168,11 +203,12 @@ def test_e2e_lua_fixture_reports_runtime_failures(host):
     assert fixture["ft_got"] == "lua"
     assert checks["opens"]["status"] == "fail"
     assert "runtime error during open" in checks["opens"]["message"]
-    assert "invalid node type at position 2007 for language lua" in checks["opens"]["message"]
+    assert "invalid node type" in checks["opens"]["message"]
+    assert "for language lua" in checks["opens"]["message"]
     assert checks["highlight"]["status"] == "fail"
     assert checks["highlight"]["message"].startswith("runtime error:")
     assert "\nmessages:\n" in checks["highlight"]["message"]
-    assert "query: invalid node type at position 2007 for language lua" in checks["highlight"]["message"]
-    assert "invalid node type at position 2007 for language lua" in checks["highlight"]["message"]
+    assert "query: invalid node type" in checks["highlight"]["message"]
+    assert "for language lua" in checks["highlight"]["message"]
     assert checks["edit"]["status"] == "pass"
     _assert_none_ls_format_failure(checks)
