@@ -28,6 +28,18 @@ def test_smoke_assets_exist_in_image(host):
     ).exists
 
 
+def test_e2e_log_fixture_reports_current_filetype_regression(host):
+    result = host.run(
+        "cd /root/lunarvim-config && "
+        "uv run script/smoke.py --mode e2e --only 'log/app.log' --json"
+    )
+    report = json.loads(result.stdout)
+    checks = {c["name"]: c for c in report["results"][0]["checks"]}
+    assert result.rc == 1
+    assert checks["filetype"]["status"] == "fail"
+    assert "expected log" in checks["filetype"]["message"]
+
+
 def test_e2e_shell_fixture_opens_and_reports_filetype(host):
     result, fixture, checks = _run_smoke(host, "shell/script.sh")
     assert result.rc == 1, result.stderr

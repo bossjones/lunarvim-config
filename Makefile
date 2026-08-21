@@ -1,4 +1,4 @@
-.PHONY: help backup sync deploy ubuntu ubuntu-64-bit macos-arm64 evals bootstrap doctor install uv-tool-install npm-tool-install brew-tool-install go-tool-install luarocks-tool-install gem-tool-install copy-configs mason-tool-install test test-unit test-testinfra test-all docker-build docker-test docker-lint docker-shell e2e
+.PHONY: help backup sync deploy smoke deploy-smoke ubuntu ubuntu-64-bit macos-arm64 evals bootstrap doctor install uv-tool-install npm-tool-install brew-tool-install go-tool-install luarocks-tool-install gem-tool-install copy-configs mason-tool-install test test-unit test-testinfra test-all docker-build docker-test docker-lint docker-shell e2e
 
 help: ## Show this help message
 	@uv run python -c "import re; \
@@ -35,6 +35,11 @@ sync: backup ## Sync config files from this repo to ~/.config/lvim/
 
 deploy: ## Install config to ~/.config/lvim via the Python installer (make deploy ARGS=--dry-run)
 	@uv run script/install.py $(ARGS)
+
+smoke: ## Smoke-test the deployed config with the active local LunarVim
+	@uv run script/smoke.py --mode smoke $(ARGS)
+
+deploy-smoke: deploy smoke ## Deploy and smoke-test the active system
 
 ubuntu: ## Install linters and formatters on Ubuntu (arm64)
 	sudo apt install luarocks -y

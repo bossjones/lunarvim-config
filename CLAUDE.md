@@ -123,7 +123,22 @@ make test            # plenary Lua specs (headless; needs plenary at $PLENARY_PA
 make test-unit       # fast Python unit tests (pytest)
 make test-testinfra  # testinfra suite against the Docker image
 make docker-lint     # luacheck inside Docker (use this if local luacheck is broken)
+make smoke           # active-system post-deploy smoke suite; missing local tools are reported as skips
+make deploy-smoke    # deploy then run the active-system smoke suite
+make e2e             # strict Docker smoke suite for Neovim 0.9.5
 ```
+
+### Smoke feedback loop
+
+After changes to `config.lua`, `ftplugin/`, `ftdetect/`, `after/`, or
+`lsp-settings/`, run `make deploy-smoke` so the active LunarVim runtime exercises
+the deployed configuration. Add each regression as a fixture or manifest assertion
+first and run it red before making the production change; the fixture turns green only
+when the real runtime behavior is fixed.
+
+The headless runner sets `lines` and `columns` to provide stable window geometry.
+It writes its machine-readable report to a file for `script/smoke.py` to read, rather
+than emitting JSON with `io.write`, because headless runtime output can mix with stdout.
 
 ## Gotchas learned the hard way
 
