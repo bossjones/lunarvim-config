@@ -684,3 +684,7 @@ tools/labeling/ml_backend/.claude/data
 ls-export.zip
 ls_export.zip
 runs
+!tests/smoke/
+!tests/smoke/fixtures/
+!tests/smoke/fixtures/log/
+!tests/smoke/fixtures/log/*.log

@@ -1,9 +1,8 @@
-"""Fixtures for the fast (no-Docker) unit suite covering script/install.py.
+"""Fixtures for the fast (no-Docker) unit suite covering scripts under script/.
 
-The installer is a PEP 723 script under `script/`, not an importable package, so we
-load it as a module via importlib and expose it as the `install` fixture. A second
-fixture builds a small fake repo tree in `tmp_path` so tests never touch the real repo
-or `$HOME`.
+The scripts are PEP 723 files under `script/`, not importable packages, so we load
+them as modules via importlib fixtures. A second fixture builds a small fake repo tree
+in `tmp_path` so tests never touch the real repo or `$HOME`.
 """
 
 from __future__ import annotations
@@ -16,6 +15,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 INSTALL_PY = REPO_ROOT / "script" / "install.py"
+SMOKE_PY = REPO_ROOT / "script" / "smoke.py"
 
 
 @pytest.fixture(scope="session")
@@ -25,6 +25,17 @@ def install():
     assert spec is not None and spec.loader is not None, f"cannot load {INSTALL_PY}"
     module = importlib.util.module_from_spec(spec)
     # Register before exec so dataclasses can resolve cls.__module__ (needed on 3.14+).
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.fixture(scope="session")
+def smoke():
+    """Load script/smoke.py as a module and return it."""
+    spec = importlib.util.spec_from_file_location("lvim_smoke", SMOKE_PY)
+    assert spec is not None and spec.loader is not None, f"cannot load {SMOKE_PY}"
+    module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module

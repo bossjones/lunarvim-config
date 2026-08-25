@@ -54,3 +54,44 @@ def test_mason_package_installed(host, mason_packages, package):
 def test_pyright_not_installed_via_mason(host, mason_packages):
     """pyright was fully replaced by basedpyright; it should not linger in Mason."""
     assert not host.file(f"{mason_packages}/pyright").exists
+
+
+@pytest.mark.parametrize(
+    "package",
+    [
+        "ansible-language-server",
+        "bash-language-server",
+        "dockerfile-language-server",
+        "json-lsp",
+        "taplo",
+        "yaml-language-server",
+    ],
+)
+def test_manifest_lsp_package_installed(host, mason_packages, package):
+    assert host.file(f"{mason_packages}/{package}").exists
+
+
+@pytest.mark.parametrize(
+    "parser",
+    [
+        "bash",
+        "python",
+        "lua",
+        "json",
+        "jsonc",
+        "yaml",
+        "toml",
+        "ini",
+        "dockerfile",
+        "make",
+        "markdown",
+        "markdown_inline",
+        "gitignore",
+    ],
+)
+def test_manifest_parser_installed(run_lua, parser):
+    result = run_lua(
+        "local p=require('nvim-treesitter.parsers'); "
+        f"io.write('<<HAS='..tostring(p.has_parser('{parser}'))..'>>')"
+    )
+    assert "<<HAS=true>>" in result.stdout + result.stderr
