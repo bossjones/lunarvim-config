@@ -1,4 +1,4 @@
-.PHONY: help backup sync deploy install-lunarvim plugins-update plugins-restore link-check link-check-verbose ubuntu ubuntu-64-bit macos-arm64 evals bootstrap doctor install uv-tool-install npm-tool-install brew-tool-install go-tool-install luarocks-tool-install gem-tool-install copy-configs mason-tool-install test test-unit test-testinfra test-all docker-build docker-test docker-lint docker-shell
+.PHONY: help backup sync deploy install-lunarvim plugins-update plugins-restore link-check link-check-verbose smoke deploy-smoke e2e ubuntu ubuntu-64-bit macos-arm64 evals bootstrap doctor install uv-tool-install npm-tool-install brew-tool-install go-tool-install luarocks-tool-install gem-tool-install copy-configs mason-tool-install test test-unit test-testinfra test-all docker-build docker-test docker-lint docker-shell
 
 # LunarVim release branch this config targets. Single source of truth for
 # `make install-lunarvim`; bump it when moving to a new upstream release (see
@@ -56,6 +56,11 @@ link-check: ## Check every markdown link with lychee (see lychee.toml)
 link-check-verbose: ## Same as link-check, but with debug-level lychee output
 	@echo "🔗 Checking markdown links with lychee (verbose)"
 	@GITHUB_TOKEN="$${GITHUB_TOKEN:-$$(gh auth token 2>/dev/null)}" lychee --config lychee.toml --verbose '**/*.md'
+
+smoke: ## Smoke-test the deployed config with the active local LunarVim
+	@uv run script/smoke.py --mode smoke $(ARGS)
+
+deploy-smoke: deploy smoke ## Deploy and smoke-test the active system
 
 plugins-update: ## Update every Lazy-managed plugin past LunarVim's snapshot pins (see README - can break LunarVim)
 	@set -eu; \
@@ -257,6 +262,9 @@ test-all: test test-unit test-testinfra ## Run Lua plenary + Python unit + testi
 
 docker-build: ## Build Docker validation image
 	docker build -t lunarvim-config:test .
+
+e2e: docker-build ## Strict smoke e2e test inside the pinned Docker image
+	docker run --rm lunarvim-config:test uv run script/smoke.py --mode e2e $(ARGS)
 
 docker-test: docker-build ## Build and run headless config validation in Docker
 	docker run --rm lunarvim-config:test

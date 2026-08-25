@@ -1,0 +1,3 @@
+app:
+  name: smoke
+  retries: 2

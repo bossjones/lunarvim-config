@@ -691,3 +691,9 @@ runs
 .lychee-report.md
 .lycheecache
 
+# Smoke-test fixtures are a committed corpus; re-include them despite the broad
+# ignore patterns above (*.log, __pycache__, etc.).
+!tests/smoke/
+!tests/smoke/fixtures/
+!tests/smoke/fixtures/log/
+!tests/smoke/fixtures/log/*.log

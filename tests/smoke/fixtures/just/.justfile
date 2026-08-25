@@ -1,0 +1,2 @@
+verify:
+  echo verify

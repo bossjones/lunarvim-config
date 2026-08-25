@@ -30,6 +30,9 @@ make deploy                    # interactive install
 make deploy ARGS=--dry-run     # preview
 ```
 
+After a successful deploy, run `make smoke` to open the committed fixture corpus with
+the active LunarVim runtime.
+
 ## Flags
 
 | Flag | Default | Purpose |

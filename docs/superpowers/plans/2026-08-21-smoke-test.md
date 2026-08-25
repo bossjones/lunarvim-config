@@ -18,7 +18,12 @@
 - `smoke` tolerates missing LSP/formatter binaries as reported skips; `e2e` treats them as failures. Version-range skips are allowed in both modes.
 - Never write format edits into the repository: copy fixtures to a fresh temporary directory for each invocation.
 - Emit the authoritative runner report to `SMOKE_OUT`; headless stdout is diagnostic only.
-- Keep the initial none-ls, `.log`, and `justfile` findings visibly red. Do not add a blocking CI e2e command until the follow-up fixes make all in-range strict checks green.
+- Keep the active config unchanged in this baseline-only implementation. The reconciled
+  strict baseline—shell formatting, Ansible LSP attachment, log/text syntax, Lua
+  treesitter/formatting, and both `just/*` version skips—is authoritative in
+  [`specs/smoke-test.md`'s baseline policy](../../../specs/smoke-test.md#intentional-red-baseline-and-ci-policy).
+  Do not add e2e to CI or `test-all` until its green follow-up resolves every in-range
+  failure and `make e2e` exits zero.
 - Use existing `rich>=13.0`; do not add Python dependencies.
 
 ---
@@ -79,7 +84,7 @@
 
 - Create: `tests/unit/test_smoke.py`
 - Modify: `tests/unit/conftest.py`
-- Modify: `tests/smoke/fixtures/shell/script.sh`
+- Create: `tests/smoke/fixtures/shell/script.sh`
 - Create: `script/smoke.py`
 
 **Interfaces:**
@@ -440,7 +445,8 @@ return {
   { path = "ini/foo.service", ft = "systemd", parser = "ini" },
   { path = "ssh/.ssh/config", ft = "sshconfig", syntax = true },
   { path = "log/app.log", ft = "log", syntax = true },
-  { path = "text/notes.txt", ft = "text", syntax = true, lsp = { "vale_ls" } },
+  { path = "text/notes.txt", ft = "text", syntax = true,
+    note = "No Vale LSP expectation: it is not provisioned in the strict image." },
   { path = "json/data.json", ft = "json", parser = "json", lsp = { "jsonls" }, format = "jsonls" },
   { path = "json/package.json", ft = "json", parser = "json", lsp = { "jsonls" }, format = "jsonls" },
   { path = "json/tsconfig.json", ft = "jsonc", parser = "jsonc", lsp = { "jsonls" }, format = "jsonls" },
@@ -731,7 +737,7 @@ def test_manifest_parser_installed(run_lua, parser):
 
 - [ ] **Step 2: Verify RED**
 
-Run: `uv run pytest tests/testinfra/test_binaries.py -v`
+Run: `make docker-build && uv run pytest tests/testinfra/test_binaries.py -v`
 
 Expected: fail for newly required Ansible package and any missing parser before Dockerfile changes.
 
@@ -754,7 +760,7 @@ is red. The later green follow-up adds it to `test-all` without an allow-failure
 
 - [ ] **Step 4: Verify GREEN**
 
-Run: `uv run pytest tests/testinfra/test_binaries.py -v`
+Run: `make docker-build && uv run pytest tests/testinfra/test_binaries.py -v`
 
 Expected: all manifest-provisioning assertions pass.
 
@@ -849,11 +855,14 @@ git commit -m "docs(test): document LunarVim smoke feedback loop"
 ## Explicitly Excluded Green Follow-up
 
 The approved specification keeps config repairs out of this smoke-suite implementation.
-The subsequent, separately approved work starts from the Task 7 red reports, applies
-active `config.lua` detection rules for `.log`, `justfile`, and `.justfile`, updates
-none-ls only after choosing a verified 0.9.5-and-0.11-compatible revision, and changes
-the baseline detector into a full `make e2e` zero-exit test. Only that green follow-up
-modifies `.github/workflows/ci.yml` to run strict e2e without `continue-on-error`.
+Task 7 originally captured only the log finding; the later reconciliation expands the
+baseline to the shell, Ansible, log, text, Lua, and version-gated just outcomes named
+in [`specs/smoke-test.md`'s baseline policy](../../../specs/smoke-test.md#intentional-red-baseline-and-ci-policy).
+That policy is the sole detailed source for their expected report evidence, rationale,
+and green gate. The separately approved follow-up resolves every in-range failure,
+retains the legitimate `just/*` skips, and proves a zero-exit `make e2e` before it
+modifies `test-all` or `.github/workflows/ci.yml`; it must not use
+`continue-on-error`.
 
 ## Plan Self-Review
 

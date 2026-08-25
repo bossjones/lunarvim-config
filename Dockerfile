@@ -85,7 +85,7 @@ RUN uv tool install basedpyright && uv tool install ruff
 # Every server referenced by an ftplugin is installed here so the image is a
 # faithful test target for the testinfra suite.
 RUN /root/.local/bin/lvim --headless \
-    +"MasonInstall bash-language-server yaml-language-server json-lsp taplo dockerfile-language-server shellcheck shfmt debugpy stylua lua-language-server" +q 2>&1 \
+    +"MasonInstall ansible-language-server bash-language-server yaml-language-server json-lsp taplo dockerfile-language-server shellcheck shfmt debugpy stylua lua-language-server" +q 2>&1 \
     || true
 
 # Apply the `commit` pins config.lua sets on top of LunarVim's snapshot pins.
@@ -116,7 +116,7 @@ RUN /root/.local/bin/lvim --headless \
 # available on the nvim-0.9 pin, so XML/.plist and ~/.ssh/config use Neovim's
 # builtin syntax highlighting instead (no parser needed).
 RUN /root/.local/bin/lvim --headless \
-    +"TSInstallSync bash python lua json jsonc yaml toml ini dockerfile" +qa 2>&1 \
+    +"TSInstallSync bash python lua json jsonc yaml toml ini dockerfile make markdown markdown_inline gitignore git_config" +qa 2>&1 \
     || true
 
 # Default: run headless config load test
