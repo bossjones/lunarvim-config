@@ -248,12 +248,32 @@ lvim.plugins = {
       explorer = { enabled = false },
     },
   },
-  -- LunarVim 1.3 pins `jose-elias-alvarez/null-ls.nvim`, but that repo was deleted
+  -- LunarVim pins `jose-elias-alvarez/null-ls.nvim`, but that repo was deleted
   -- upstream (clone now fails). Disable the dead core spec and install its
   -- maintained drop-in fork instead; none-ls ships the same `null-ls` Lua module,
   -- so ruff/shfmt/stylua/shellcheck keep working via LunarVim's null-ls wrappers.
   { "jose-elias-alvarez/null-ls.nvim", enabled = false },
-  { "nvimtools/none-ls.nvim", lazy = true, dependencies = { "nvim-lua/plenary.nvim" } },
+  {
+    -- none-ls is ALSO a LunarVim core plugin (lvim/lua/lvim/plugins.lua), so
+    -- lvim/snapshots/default.json stamps `commit = "3a48266"` (2023-11-29) onto it
+    -- unless $LVIM_DEV_MODE is set. That revision calls `lsp._request_name_to_capability`,
+    -- which Neovim 0.11 moved to `vim.lsp.protocol._request_name_to_capability` — so it
+    -- throws on every LSP attach. Every LunarVim branch (1.3, 1.4, master) carries the
+    -- same stale pin, so there is no upstream fix to wait for.
+    --
+    -- This revision uses the
+    -- `lsp.protocol._request_name_to_capability or lsp._request_name_to_capability or ...`
+    -- fallback chain and guards its other newer APIs (`vim.uv or vim.loop`, `vim.iter`
+    -- behind `has("nvim-0.11")`), so it works on both 0.9 and 0.11.
+    --
+    -- config.lua's specs are merged AFTER lvim/plugins.lua, and lazy's Spec:merge does
+    -- `setmetatable(new, { __index = old })` — so this `commit` shadows the snapshot pin.
+    -- Bump it deliberately; `make plugins-update` honors it.
+    "nvimtools/none-ls.nvim",
+    commit = "c4b82bb63b13856ba4d6b971b7aad3bb38fc6fe2",
+    lazy = true,
+    dependencies = { "nvim-lua/plenary.nvim" },
+  },
   { "stevearc/dressing.nvim" },
   { "b0o/schemastore.nvim" }, -- JSON/YAML schemas for jsonls/yamlls
   { "ChristianChiarulli/swenv.nvim" },

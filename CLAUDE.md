@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Overview
 
 This is a LunarVim configuration repository — a customized Neovim setup built on
-top of [LunarVim](https://www.lunarvim.org/) (`release-1.3/neovim-0.9` branch). It
+top of [LunarVim](https://www.lunarvim.org/) (`release-1.4/neovim-0.9` branch). It
 is a personal config that gets deployed to `~/.config/lvim/`.
 
 > **Neovim version duality (important):** the LunarVim branch pins **Neovim 0.9**,

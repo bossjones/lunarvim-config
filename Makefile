@@ -1,4 +1,4 @@
-.PHONY: help backup sync deploy ubuntu ubuntu-64-bit macos-arm64 evals bootstrap doctor install uv-tool-install npm-tool-install brew-tool-install go-tool-install luarocks-tool-install gem-tool-install copy-configs mason-tool-install test test-unit test-testinfra test-all docker-build docker-test docker-lint docker-shell
+.PHONY: help backup sync deploy plugins-update plugins-restore ubuntu ubuntu-64-bit macos-arm64 evals bootstrap doctor install uv-tool-install npm-tool-install brew-tool-install go-tool-install luarocks-tool-install gem-tool-install copy-configs mason-tool-install test test-unit test-testinfra test-all docker-build docker-test docker-lint docker-shell
 
 help: ## Show this help message
 	@uv run python -c "import re; \
@@ -35,6 +35,46 @@ sync: backup ## Sync config files from this repo to ~/.config/lvim/
 
 deploy: ## Install config to ~/.config/lvim via the Python installer (make deploy ARGS=--dry-run)
 	@uv run script/install.py $(ARGS)
+
+plugins-update: ## Update every Lazy-managed plugin past LunarVim's snapshot pins (see README - can break LunarVim)
+	@set -eu; \
+	cfg="$$HOME/.config/lvim/config.lua"; \
+	lazy_dir="$$HOME/.local/share/lunarvim/site/pack/lazy/opt/lazy.nvim"; \
+	lock="$$HOME/.config/lvim/lazy-lock.json"; \
+	test -f "$$cfg" || { \
+		echo "No deployed config at $$cfg - run 'make deploy' first."; exit 1; \
+	}; \
+	test -d "$$lazy_dir/.git" || { \
+		echo "lazy.nvim is not installed - launch 'lvim' once first."; exit 1; \
+	}; \
+	if [ -f "$$lock" ]; then \
+		backup="$$lock.bak.$$(date +%Y%m%d-%H%M%S)"; \
+		cp -p "$$lock" "$$backup"; \
+		echo "Backed up lockfile to $$backup"; \
+	fi
+	LVIM_DEV_MODE=1 lvim --headless \
+		-c "luafile $(CURDIR)/script/lazy_update.lua" \
+		-c "qa!"
+
+plugins-restore: ## Return every plugin to LunarVim's snapshot pins (config.lua `commit` pins are kept)
+	@set -eu; \
+	cfg="$$HOME/.config/lvim/config.lua"; \
+	lazy_dir="$$HOME/.local/share/lunarvim/site/pack/lazy/opt/lazy.nvim"; \
+	lock="$$HOME/.config/lvim/lazy-lock.json"; \
+	test -f "$$cfg" || { \
+		echo "No deployed config at $$cfg - run 'make deploy' first."; exit 1; \
+	}; \
+	test -d "$$lazy_dir/.git" || { \
+		echo "lazy.nvim is not installed - launch 'lvim' once first."; exit 1; \
+	}; \
+	if [ -f "$$lock" ]; then \
+		backup="$$lock.bak.$$(date +%Y%m%d-%H%M%S)"; \
+		cp -p "$$lock" "$$backup"; \
+		echo "Backed up lockfile to $$backup"; \
+	fi
+	lvim --headless \
+		-c "luafile $(CURDIR)/script/lazy_update.lua" \
+		-c "qa!"
 
 ubuntu: ## Install linters and formatters on Ubuntu (arm64)
 	sudo apt install luarocks -y
