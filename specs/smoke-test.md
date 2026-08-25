@@ -161,9 +161,11 @@ the implementation already exists.
 ### Intentional-red baseline and CI policy
 
 This is the authoritative current baseline for the pinned Neovim 0.9.5 Docker runtime.
-It was reconciled against an actual full `make e2e` report on 2026-08-21. The
-testinfra contracts assert the runner's real report—not a process crash, missing JSON,
-or opaque nonzero exit—as evidence for each outcome.
+It was reconciled against an actual full `make e2e` report on 2026-08-21, and updated on
+2026-08-25 after the `release-1.4/neovim-0.9` migration ([PR #11](https://github.com/bossjones/lunarvim-config/pull/11))
+flipped the `lua/init.lua` treesitter checks green (see that row). The testinfra
+contracts assert the runner's real report—not a process crash, missing JSON, or opaque
+nonzero exit—as evidence for each outcome.
 
 | Fixture(s) | Expected strict report | Why it remains in this baseline |
 | --- | --- | --- |
@@ -171,19 +173,23 @@ or opaque nonzero exit—as evidence for each outcome.
 | `yaml/playbooks/site.yml` | `lsp=fail` with `missing=ansiblels`; `lsp_healthy=pass`; `opens`, `filetype`, `highlight`, and `edit` remain `pass`. | The expected `ansiblels` client does not attach in the strict image. |
 | `log/app.log` | `ft_got=""`; `filetype=fail` (`expected log, got`); `highlight=fail` (`builtin syntax=nil`); `opens` and `edit` remain `pass`. | The active filetype/syntax path does not establish the expected `log` type or its builtin syntax. |
 | `text/notes.txt` | `filetype=pass` (`text`), but `highlight=fail` with `builtin syntax=nil`; `opens` and `edit` remain `pass`. | The expected builtin text syntax highlight is unavailable. |
-| `lua/init.lua` | `opens=fail` and `highlight=fail`, each preserving an `invalid node type` error for language `lua`; `filetype` and `edit` remain `pass`. `format=fail` contains the none-ls `str_utfindex` discriminator. | The pinned Lua treesitter query/runtime is incompatible, and the same none-ls formatter path fails. |
+| `lua/init.lua` | `opens`, `filetype`, `highlight` (`parser=true highlighter=true`), and `edit` all `pass`; only `format=fail`, carrying the none-ls `str_utfindex` discriminator. | Migrating this repo to `release-1.4/neovim-0.9` ([PR #11](https://github.com/bossjones/lunarvim-config/pull/11)) pulled in a newer nvim-treesitter snapshot whose Lua parser/queries are compatible with 0.9.5, resolving the earlier `invalid node type` failure; only the shared none-ls formatter path still fails. |
 | `just/justfile`, `just/.justfile` | Each produces only `version=skip`: `nvim version 0.9.5 is below minimum 0.10`. | These are legitimate, tested version-range skips, not failures; the fixtures are intentionally out of range on the pinned runtime. |
 
 The failure rows—not the legitimate `just/*` skips—make strict `make e2e` nonzero.
 They are a **pre-fix TDD baseline**, not a state that may be hidden, inverted, accepted
-as a runner crash, whitelisted, or made green by relaxing checks. This baseline-only
-change leaves active configuration, Docker provisioning, CI, and `test-all` unchanged.
+as a runner crash, whitelisted, or made green by relaxing checks. (The `lua/init.lua`
+`opens`/`highlight` checks did flip green — but through a real runtime upgrade, the
+1.4 migration, not a relaxed assertion; the contract still asserts the runner's real
+report.) This baseline-only change leaves active configuration and CI unchanged apart
+from that migration.
 
 The separately approved green follow-up must first use the focused fixture contracts to
-resolve every failure row above: the none-ls formatter compatibility failure, the
-`ansiblels` attachment failure, `log` filetype and syntax, text builtin syntax, and the
-Lua treesitter and formatter failures. It must also revalidate that both `just/*`
-fixtures retain their legitimate 0.9.5 version skips. Only after all in-range checks
+resolve every remaining failure row above: the none-ls formatter compatibility failure
+(shell and lua), the `ansiblels` attachment failure, `log` filetype and syntax, and
+text builtin syntax. (The Lua treesitter failure is already resolved by the 1.4
+migration.) It must also revalidate that both `just/*` fixtures retain their legitimate
+0.9.5 version skips. Only after all in-range checks
 pass, the full `make e2e` exits zero (with only those version skips), and the focused
 contracts are made green without inverted assertions may that follow-up add `e2e` to
 `test-all` and a blocking CI workflow step. It must not use `continue-on-error`.

@@ -197,18 +197,20 @@ def test_e2e_shell_fixture_reports_edit_pass_and_none_ls_format_failure(host):
     _assert_none_ls_format_failure(checks)
 
 
-def test_e2e_lua_fixture_reports_runtime_failures(host):
+def test_e2e_lua_fixture_opens_cleanly_but_none_ls_format_fails(host):
+    # The 1.3 baseline recorded `opens=fail` / `highlight=fail` here, each carrying a
+    # Lua treesitter "invalid node type" query error. Migrating this repo to
+    # release-1.4/neovim-0.9 (PR #11) pulled in a newer nvim-treesitter snapshot whose
+    # Lua parser/queries are compatible with the pinned 0.9.5 runtime, so the file now
+    # opens and highlights cleanly. Only the shared none-ls stylua formatter path still
+    # fails (str_utfindex) — the same 0.9.5 compatibility failure the shell fixture hits.
     result, fixture, checks = _run_smoke(host, "lua/init.lua")
     assert result.rc == 1, result.stderr
     assert fixture["ft_got"] == "lua"
-    assert checks["opens"]["status"] == "fail"
-    assert "runtime error during open" in checks["opens"]["message"]
-    assert "invalid node type" in checks["opens"]["message"]
-    assert "for language lua" in checks["opens"]["message"]
-    assert checks["highlight"]["status"] == "fail"
-    assert checks["highlight"]["message"].startswith("runtime error:")
-    assert "\nmessages:\n" in checks["highlight"]["message"]
-    assert "query: invalid node type" in checks["highlight"]["message"]
-    assert "for language lua" in checks["highlight"]["message"]
+    assert checks["opens"]["status"] == "pass"
+    assert checks["filetype"]["status"] == "pass"
+    assert checks["highlight"]["status"] == "pass"
+    assert "parser=true" in checks["highlight"]["message"]
+    assert "highlighter=true" in checks["highlight"]["message"]
     assert checks["edit"]["status"] == "pass"
     _assert_none_ls_format_failure(checks)
