@@ -1,0 +1,50 @@
+name: Links
+
+# Link-check every markdown file with lychee (https://github.com/lycheeverse/lychee).
+# Mirrors `make link-check`; config lives in ./lychee.toml.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Weekly run catches links that rot on their own (upstream repos moving/renaming),
+  # not just links changed in a PR.
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  link-check:
+    name: lychee
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore lychee cache
+        uses: actions/cache@v4
+        with:
+          path: .lycheecache
+          key: lychee-${{ github.sha }}
+          restore-keys: lychee-
+
+      - name: Run lychee
+        uses: lycheeverse/lychee-action@v2
+        with:
+          # Same invocation as `make link-check`. `--cache` reuses results across runs.
+          args: --config lychee.toml --cache '**/*.md'
+          # Fail the job on broken links (a link-check that never fails is not a gate).
+          fail: true
+        env:
+          # Lets lychee use the GitHub API instead of scraping HTML, avoiding
+          # rate-limit false-404s on github.com links.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload lychee report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lychee-report
+          path: .lychee-report.md
+          if-no-files-found: ignore

@@ -686,3 +686,8 @@ ls_export.zip
 runs
 .boss-skills/
 
+# lychee link-checker: generated summary report and request cache (see lychee.toml,
+# `make link-check`). Neither should be committed.
+.lychee-report.md
+.lycheecache
+

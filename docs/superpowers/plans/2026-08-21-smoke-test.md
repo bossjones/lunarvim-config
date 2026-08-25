@@ -26,7 +26,7 @@
 ## File Structure
 
 | Path | Responsibility |
-|---|---|
+| --- | --- |
 | `script/smoke.py` | CLI, fixture staging, LunarVim invocation, report validation/rendering, and exit policy. |
 | `tests/unit/conftest.py` | Loads `script/smoke.py` as the `smoke` fixture without packaging the script. |
 | `tests/unit/test_smoke.py` | Fast subprocess and pure-helper contracts using a controlled executable `lvim` double. |
@@ -43,7 +43,7 @@
 ## Shared Interfaces
 
 | Python function | Contract |
-|---|---|
+| --- | --- |
 | `parse_args(argv)` | Returns parsed `--mode`, `--target`, `--lvim`, `--only`, `--timeout`, `--json`, `--keep`, and `--verbose` values. |
 | `stage_fixtures(source, staging_root)` | Copies `source` into `staging_root / "fixtures"` and returns that destination. |
 | `build_lvim_command(lvim, runner, fixture_root, report_path, only)` | Returns the `lvim --headless` argv that assigns `SMOKE_ROOT`, `SMOKE_OUT`, and `SMOKE_ONLY` before `luafile runner`. |
@@ -76,12 +76,14 @@
 ### Task 1: Establish the public smoke CLI contract
 
 **Files:**
+
 - Create: `tests/unit/test_smoke.py`
 - Modify: `tests/unit/conftest.py`
 - Modify: `tests/smoke/fixtures/shell/script.sh`
 - Create: `script/smoke.py`
 
 **Interfaces:**
+
 - Produces: `main(argv) -> int`, `parse_args(argv) -> argparse.Namespace`, and a subprocess-compatible CLI.
 - Consumes: `--lvim PATH`, `--json`, and the `SMOKE_OUT` global contract passed to LunarVim.
 
@@ -198,10 +200,12 @@ git commit -m "feat(test): add smoke CLI foundation"
 ### Task 2: Lock down orchestrator policy with focused unit tests
 
 **Files:**
+
 - Modify: `tests/unit/test_smoke.py`
 - Modify: `script/smoke.py`
 
 **Interfaces:**
+
 - Consumes: runner reports with `results[*].checks[*].status` and optional `runner_error`.
 - Produces: `report_exit_code(report, mode) -> int`, `stage_fixtures()`, `build_lvim_command()`, and failure code `2` for invalid CLI/tool resolution.
 
@@ -318,6 +322,7 @@ git commit -m "feat(test): add smoke report policy"
 ### Task 3: Add the committed fixture corpus and literal manifest contract
 
 **Files:**
+
 - Create: `tests/smoke/fixtures/README.md`
 - Modify: `tests/smoke/fixtures/shell/script.sh`
 - Create: `tests/smoke/fixtures/shell/.zshrc`
@@ -352,6 +357,7 @@ git commit -m "feat(test): add smoke report policy"
 - Modify: `tests/unit/test_smoke.py`
 
 **Interfaces:**
+
 - Produces: a fixture root that staging preserves byte-for-byte and a Lua table consumed only by `runner.lua`.
 - Consumes: current `config.lua` filetype rules, treesitter parser list, LSP configurations, and format-on-save patterns.
 
@@ -476,11 +482,13 @@ git commit -m "test: add LunarVim smoke fixtures"
 ### Task 4: Prove a minimal runner checks real file opening
 
 **Files:**
+
 - Create: `tests/smoke/runner.lua`
 - Modify: `tests/testinfra/test_e2e.py`
 - Modify: `script/smoke.py`
 
 **Interfaces:**
+
 - Consumes: `SMOKE_ROOT`, `SMOKE_OUT`, `SMOKE_MODE`, `SMOKE_ONLY`, and `manifest.lua`.
 - Produces: one report result per selected fixture and check-level `{ name, status, message }` records.
 
@@ -552,11 +560,13 @@ git commit -m "feat(test): open smoke fixtures headlessly"
 ### Task 5: Expand runner checks in separate red-green slices
 
 **Files:**
+
 - Modify: `tests/smoke/runner.lua`
 - Modify: `tests/testinfra/test_e2e.py`
 - Modify: `tests/unit/test_smoke.py`
 
 **Interfaces:**
+
 - Produces: `highlight`, `lsp`, `lsp_healthy`, `edit`, and `format` records alongside `opens` and `filetype`.
 - Consumes: `manifest.lua` parser/syntax, LSP, formatter, and version-bound fields.
 
@@ -688,11 +698,13 @@ git commit -m "feat(test): validate smoke runtime checks"
 ### Task 6: Make strict Docker provisioning match the manifest
 
 **Files:**
+
 - Modify: `Dockerfile`
 - Modify: `tests/testinfra/test_binaries.py`
 - Modify: `Makefile`
 
 **Interfaces:**
+
 - Produces: `make e2e`, which runs `uv run script/smoke.py --mode e2e` inside `lunarvim-config:test`.
 - Consumes: all in-range manifest LSP names and treesitter parsers.
 
@@ -756,12 +768,14 @@ git commit -m "test: provision strict smoke runtime"
 ### Task 7: Capture the known red baseline and document the feedback loop
 
 **Files:**
+
 - Modify: `tests/testinfra/test_e2e.py`
 - Modify: `Makefile`
 - Modify: `CLAUDE.md`
 - Modify: `specs/install.md`
 
 **Interfaces:**
+
 - Produces: `make smoke`, `make deploy-smoke`, and a machine-readable baseline report.
 - Consumes: the real deployed local configuration for `smoke` and the Docker image for `e2e`.
 

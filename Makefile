@@ -1,4 +1,10 @@
-.PHONY: help backup sync deploy plugins-update plugins-restore ubuntu ubuntu-64-bit macos-arm64 evals bootstrap doctor install uv-tool-install npm-tool-install brew-tool-install go-tool-install luarocks-tool-install gem-tool-install copy-configs mason-tool-install test test-unit test-testinfra test-all docker-build docker-test docker-lint docker-shell
+.PHONY: help backup sync deploy install-lunarvim plugins-update plugins-restore link-check link-check-verbose ubuntu ubuntu-64-bit macos-arm64 evals bootstrap doctor install uv-tool-install npm-tool-install brew-tool-install go-tool-install luarocks-tool-install gem-tool-install copy-configs mason-tool-install test test-unit test-testinfra test-all docker-build docker-test docker-lint docker-shell
+
+# LunarVim release branch this config targets. Single source of truth for
+# `make install-lunarvim`; bump it when moving to a new upstream release (see
+# https://www.lunarvim.org/docs/installation). The Dockerfile and the GitHub
+# Actions workflows carry the same literal — keep all three in step.
+LV_BRANCH ?= release-1.4/neovim-0.9
 
 help: ## Show this help message
 	@uv run python -c "import re; \
@@ -35,6 +41,21 @@ sync: backup ## Sync config files from this repo to ~/.config/lvim/
 
 deploy: ## Install config to ~/.config/lvim via the Python installer (make deploy ARGS=--dry-run)
 	@uv run script/install.py $(ARGS)
+
+install-lunarvim: ## Install LunarVim itself via its official installer (bump LV_BRANCH for a new version)
+	curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+	  https://raw.githubusercontent.com/LunarVim/LunarVim/$(LV_BRANCH)/utils/installer/install.sh \
+	  -o /tmp/lvim-install.sh
+	LV_BRANCH='$(LV_BRANCH)' bash /tmp/lvim-install.sh --install-dependencies -y
+	rm -f /tmp/lvim-install.sh
+
+link-check: ## Check every markdown link with lychee (see lychee.toml)
+	@echo "🔗 Checking markdown links with lychee"
+	@GITHUB_TOKEN="$${GITHUB_TOKEN:-$$(gh auth token 2>/dev/null)}" lychee --config lychee.toml '**/*.md'
+
+link-check-verbose: ## Same as link-check, but with debug-level lychee output
+	@echo "🔗 Checking markdown links with lychee (verbose)"
+	@GITHUB_TOKEN="$${GITHUB_TOKEN:-$$(gh auth token 2>/dev/null)}" lychee --config lychee.toml --verbose '**/*.md'
 
 plugins-update: ## Update every Lazy-managed plugin past LunarVim's snapshot pins (see README - can break LunarVim)
 	@set -eu; \

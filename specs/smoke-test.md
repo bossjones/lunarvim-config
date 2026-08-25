@@ -18,7 +18,7 @@ don't catch these because:
 Build a **fixture-driven file-opening test** with **two tiers that share one engine**:
 
 | Tier | Command | Where it runs | Purpose |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | **e2e** | `make e2e` | Inside the Docker image (nvim 0.9.5, LunarVim 1.3, Mason servers baked in) | Hermetic, reproducible, runs in CI on every PR. Validates the config against the **pinned** runtime. **Strict**: every expected LSP binary is present in the image, so a missing attach is a *failure*, never a skip. |
 | **smoke** | `make smoke` (or `make deploy-smoke`) | On the **active system**: the real `~/.config/lvim` deploy, the real local `lvim`/nvim (0.11.x today), the real Mason/uv/brew tool state | The post-deploy feedback loop for the user (and for Claude after editing the config). **Tolerant of environment drift**: a missing LSP binary is reported as `skip(<bin> not installed)` and surfaced in the summary, not a failure. |
 
@@ -65,14 +65,14 @@ on 0.9.5 can be broken on 0.11.
 Approaches considered:
 
 | | Approach | Verdict |
-|---|---|---|
+| --- | --- | --- |
 | A | Extend the testinfra/Docker suite with more parametrized cases | Rejected as the *only* path: Docker-only, slow, tests 0.9.5 but **not the local machine** where issues appear. |
 | B | **Standalone headless Lua runner + fixture manifest, orchestrated by a `uv run` Python script, exposed as two tiers: `make e2e` (Docker, strict) and `make smoke` (active system, tolerant)** | **Recommended.** One engine, two environments, two contracts. Docker gives CI a hermetic pinned-runtime e2e; the local tier tests what the user actually runs. |
 | C | More plenary specs | Rejected: plenary bootstrap mocks `lvim`; cannot observe LSP attach, lazy-loading, or real autocmds. |
 
 **Design (B):**
 
-```
+```text
 tests/smoke/
 ├── manifest.lua          # fixture → expectations (ft, parser/syntax, lsp, format)
 ├── runner.lua            # runs inside `lvim --headless`; writes JSON report
@@ -175,7 +175,7 @@ the CI command succeed while the runner reports failures.
 **Per-fixture checks (runner.lua):**
 
 | Check | How | Why |
-|---|---|---|
+| --- | --- | --- |
 | `opens` | `pcall(vim.cmd.edit)`; reset `vim.v.errmsg`; wrap `vim.notify`/`vim.api.nvim_err_writeln`; diff `:messages` before/after | Catches plugin crashes on `BufRead*`/`FileType` autocmds (e.g. none-ls on 0.11). |
 | `filetype` | `vim.bo.filetype == expected` | Missing detection (`.log`, `.justfile`) |
 | `highlight` | `vim.treesitter.highlighter.active[buf] ~= nil` when `parser` expected; else `vim.b.current_syntax ~= nil` for builtin-syntax fallbacks (`xml`, `sshconfig`, `log`) | Parser missing / highlighter never attached |
@@ -194,7 +194,7 @@ fails. `skip` reasons are printed so "passed" never hides "not actually tested".
 **Mode semantics (`SMOKE_MODE` global, set by `smoke.py --mode`):**
 
 | Situation | `smoke` (active system) | `e2e` (Docker) |
-|---|---|---|
+| --- | --- | --- |
 | LSP binary missing | `skip`, counted + listed in summary | `fail` |
 | Formatter binary missing | `skip` | `fail` |
 | Fixture outside nvim version range | `skip` | `skip` |

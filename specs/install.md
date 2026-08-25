@@ -33,7 +33,7 @@ make deploy ARGS=--dry-run     # preview
 ## Flags
 
 | Flag | Default | Purpose |
-|------|---------|---------|
+| ------ | --------- | --------- |
 | `--dry-run` | off | Print the plan + diffs and exit without modifying the filesystem. |
 | `-y`, `--yes` | off | Skip the interactive confirmation prompt. |
 | `--target DIR` | `~/.config/lvim` | Destination directory for the config. |
@@ -85,7 +85,7 @@ Binary files are detected (NUL-byte heuristic) and marked without attempting a t
 ## Exit codes
 
 | Code | Meaning |
-|------|---------|
+| ------ | --------- |
 | `0` | Success (install completed, or `--dry-run` preview rendered). |
 | `1` | Runtime error (e.g. source repo missing manifest items, copy failure). |
 | `2` | Bad arguments (argparse usage error, or `--repo` path does not exist). |
@@ -107,7 +107,7 @@ Fast unit tests (no Docker) live in `tests/unit/test_install.py`, run via
 `uv run pytest tests/unit -v` (or `make test-unit`):
 
 | Test | Asserts |
-|------|---------|
+| ------ | --------- |
 | `test_manifest_excludes_git_and_repo_meta` | `MANIFEST` = the 16 items; no `.git`, `pyproject.toml`, `tests`, `specs`, `bootstrap.sh`. |
 | `test_build_plan_all_create_on_empty_target` | Empty target → every action is `CREATE`. |
 | `test_build_plan_unchanged_for_identical_file` | Identical content → `UNCHANGED`, empty diff. |
