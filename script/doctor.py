@@ -19,7 +19,9 @@ from __future__ import annotations
 
 import os
 import platform
+import re
 import shutil
+import subprocess
 import sys
 from dataclasses import dataclass
 from enum import Enum
@@ -90,8 +92,208 @@ def _mason_base() -> Path:
 
 
 # ---------------------------------------------------------------------------
+# Version detection
+# ---------------------------------------------------------------------------
+
+# LunarVim 1.4 is the branch documented for Neovim 0.9.x (master needs 0.10+).
+EXPECTED_LVIM_BRANCH = "release-1.4/neovim-0.9"
+
+# The Docker/CI image pins 0.9.5; local machines run much newer. Both must work.
+MIN_NVIM_VERSION = (0, 9, 0)
+
+_NVIM_VERSION_RE = re.compile(r"NVIM\s+v(\d+)\.(\d+)\.(\d+)")
+_LUA_LINE_COMMENT_RE = re.compile(r"^[ \t]*--.*$", re.MULTILINE)
+_LUA_COMMIT_RE = re.compile(r'commit\s*=\s*"([0-9a-fA-F]{7,40})"')
+
+_NONE_LS_MARKER = '"nvimtools/none-ls.nvim"'
+
+
+def _parse_nvim_version(text: str) -> tuple[int, int, int] | None:
+    """Extract (major, minor, patch) from `nvim --version` output."""
+    m = _NVIM_VERSION_RE.search(text)
+    if not m:
+        return None
+    return (int(m.group(1)), int(m.group(2)), int(m.group(3)))
+
+
+def _parse_none_ls_pin(config_text: str) -> str | None:
+    """Return the `commit` SHA pinned on the none-ls spec in config.lua, if any.
+
+    Lua line comments are stripped first so a commented-out SHA can't be mistaken for
+    the real pin, and the search window stops at the next top-level `lvim.plugins`
+    entry so an unpinned none-ls can't inherit the following plugin's commit.
+    """
+    text = _LUA_LINE_COMMENT_RE.sub("", config_text)
+    start = text.find(_NONE_LS_MARKER)
+    if start == -1:
+        return None
+
+    window = text[start:]
+    end = window.find("\n  {", 1)
+    if end != -1:
+        window = window[:end]
+
+    m = _LUA_COMMIT_RE.search(window)
+    return m.group(1) if m else None
+
+
+def _run(args: list[str]) -> str | None:
+    """Run a command and return its stripped stdout, or None if it fails."""
+    try:
+        out = subprocess.run(
+            args, capture_output=True, text=True, timeout=10, check=False
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if out.returncode != 0:
+        return None
+    return out.stdout.strip() or None
+
+
+def _lvim_runtime_dir() -> Path:
+    """LunarVim's runtime dir, honoring $LUNARVIM_RUNTIME_DIR like the `lvim` wrapper."""
+    env = os.environ.get("LUNARVIM_RUNTIME_DIR", "")
+    if env:
+        return Path(env)
+    return Path.home() / ".local" / "share" / "lunarvim"
+
+
+def _nvim_version() -> tuple[int, int, int] | None:
+    out = _run(["nvim", "--version"])
+    return _parse_nvim_version(out) if out else None
+
+
+def _lvim_git_info() -> tuple[str | None, str | None]:
+    """Return (branch, tag) of the installed LunarVim runtime."""
+    base = _lvim_runtime_dir() / "lvim"
+    if not (base / ".git").exists():
+        return None, None
+    branch = _run(["git", "-C", str(base), "rev-parse", "--abbrev-ref", "HEAD"])
+    tag = _run(["git", "-C", str(base), "describe", "--tags", "--abbrev=0"])
+    return branch, tag
+
+
+def _none_ls_installed_commit() -> str | None:
+    """HEAD of the none-ls checkout Lazy actually manages."""
+    d = _lvim_runtime_dir() / "site" / "pack" / "lazy" / "opt" / "none-ls.nvim"
+    if not (d / ".git").exists():
+        return None
+    return _run(["git", "-C", str(d), "rev-parse", "HEAD"])
+
+
+# ---------------------------------------------------------------------------
 # Check functions
 # ---------------------------------------------------------------------------
+
+
+def check_versions(repo: Path) -> list[CheckResult]:
+    """Report installed Neovim/LunarVim versions and none-ls drift.
+
+    none-ls gets its own check because LunarVim's snapshots/default.json pins it to a
+    2023 revision that crashes on Neovim 0.11; config.lua overrides that pin, but the
+    override only takes effect once the plugin is actually re-checked-out.
+    """
+    results: list[CheckResult] = []
+    category = "Versions"
+
+    # --- Neovim ---------------------------------------------------------
+    nvim = _nvim_version()
+    min_str = ".".join(str(n) for n in MIN_NVIM_VERSION)
+    if nvim is None:
+        results.append(
+            CheckResult(
+                "Neovim", Status.ERROR, Severity.REQUIRED, category,
+                "not found (or version unparseable)",
+                "Install Neovim: https://neovim.io",
+            )
+        )
+    else:
+        ver = ".".join(str(n) for n in nvim)
+        if nvim < MIN_NVIM_VERSION:
+            results.append(
+                CheckResult(
+                    "Neovim", Status.ERROR, Severity.REQUIRED, category,
+                    f"v{ver} is below the required v{min_str}",
+                    f"Upgrade Neovim to v{min_str} or newer",
+                )
+            )
+        else:
+            results.append(
+                CheckResult(
+                    "Neovim", Status.OK, Severity.REQUIRED, category,
+                    f"v{ver} (>= v{min_str})",
+                )
+            )
+
+    # --- LunarVim -------------------------------------------------------
+    branch, tag = _lvim_git_info()
+    if branch is None:
+        results.append(
+            CheckResult(
+                "LunarVim", Status.WARN, Severity.RECOMMENDED, category,
+                f"runtime not found at {_lvim_runtime_dir() / 'lvim'}",
+                "Run: make bootstrap   (or install LunarVim manually)",
+            )
+        )
+    elif branch != EXPECTED_LVIM_BRANCH:
+        results.append(
+            CheckResult(
+                "LunarVim", Status.WARN, Severity.RECOMMENDED, category,
+                f"on '{branch}'{f' ({tag})' if tag else ''}; this repo targets '{EXPECTED_LVIM_BRANCH}'",
+                f"Reinstall with LV_BRANCH='{EXPECTED_LVIM_BRANCH}'",
+            )
+        )
+    else:
+        results.append(
+            CheckResult(
+                "LunarVim", Status.OK, Severity.RECOMMENDED, category,
+                f"{tag or 'unknown'} on {branch}",
+            )
+        )
+
+    # --- none-ls revision ------------------------------------------------
+    config_lua = repo / "config.lua"
+    pin = (
+        _parse_none_ls_pin(config_lua.read_text(encoding="utf-8"))
+        if config_lua.is_file()
+        else None
+    )
+    installed = _none_ls_installed_commit()
+
+    if pin is None:
+        results.append(
+            CheckResult(
+                "none-ls revision", Status.WARN, Severity.RECOMMENDED, category,
+                "config.lua does not pin none-ls",
+                "LunarVim's snapshot pin (3a48266) crashes on Neovim 0.11 — pin it in config.lua",
+            )
+        )
+    elif installed is None:
+        results.append(
+            CheckResult(
+                "none-ls revision", Status.WARN, Severity.RECOMMENDED, category,
+                "not installed yet",
+                "Launch 'lvim' once, then run: make plugins-update",
+            )
+        )
+    elif installed == pin:
+        results.append(
+            CheckResult(
+                "none-ls revision", Status.OK, Severity.RECOMMENDED, category,
+                f"{installed[:7]} matches the config.lua pin",
+            )
+        )
+    else:
+        results.append(
+            CheckResult(
+                "none-ls revision", Status.WARN, Severity.RECOMMENDED, category,
+                f"installed {installed[:7]} != config.lua pin {pin[:7]}",
+                "Run: make plugins-update",
+            )
+        )
+
+    return results
+
 
 
 def check_source_files(repo: Path) -> list[CheckResult]:
@@ -653,6 +855,7 @@ def render_report(results: list[CheckResult], console: Console) -> int:
 def build_checks(repo: Path) -> list[CheckResult]:
     """Run all check functions and return combined results."""
     results: list[CheckResult] = []
+    results.extend(check_versions(repo))
     results.extend(check_source_files(repo))
     results.extend(check_target_dirs())
     results.extend(check_core_binaries())

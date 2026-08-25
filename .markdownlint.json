@@ -1,4 +1,5 @@
 {
   "line-length": false,
-  "no-inline-html": false
+  "no-inline-html": false,
+  "MD010": { "code_blocks": false }
 }

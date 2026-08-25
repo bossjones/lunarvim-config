@@ -15,6 +15,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 INSTALL_PY = REPO_ROOT / "script" / "install.py"
+DOCTOR_PY = REPO_ROOT / "script" / "doctor.py"
 SMOKE_PY = REPO_ROOT / "script" / "smoke.py"
 
 
@@ -62,3 +63,15 @@ def fake_repo(tmp_path: Path, install) -> Path:
     (git / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
 
     return repo
+
+
+@pytest.fixture(scope="session")
+def doctor():
+    """Load script/doctor.py as a module and return it."""
+    spec = importlib.util.spec_from_file_location("lvim_doctor", DOCTOR_PY)
+    assert spec is not None and spec.loader is not None, f"cannot load {DOCTOR_PY}"
+    module = importlib.util.module_from_spec(spec)
+    # Register before exec so dataclasses can resolve cls.__module__ (needed on 3.14+).
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module

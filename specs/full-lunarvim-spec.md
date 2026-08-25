@@ -7,9 +7,10 @@
 
 ## Context
 
-This repo is a personal LunarVim config (branch `release-1.3/neovim-0.9`) deployed to `~/.config/lvim/`. The **live** entry point is a slim, self-contained `config.lua` ("Python + Shell focused") plus a handful of `ftplugin/*` files. The large `lua/user/*` module tree documented in `CLAUDE.md` is **dormant legacy** — `config.lua` does not `require` it. `CLAUDE.md` is partly stale.
+This repo is a personal LunarVim config (branch `release-1.4/neovim-0.9`) deployed to `~/.config/lvim/`. The **live** entry point is a slim, self-contained `config.lua` ("Python + Shell focused") plus a handful of `ftplugin/*` files. The large `lua/user/*` module tree documented in `CLAUDE.md` is **dormant legacy** — `config.lua` does not `require` it. `CLAUDE.md` is partly stale.
 
 The user wants a config that works well for:
+
 - **Python**: ruff, basedpyright, pytest
 - **DevOps files**: `~/.ssh/config`, `.ini`, systemd unit files (`.service`/`.timer`/...), launchd `.plist`, shell scripts, YAML, JSON, XML
 - Global tools installed via **uv** (`uv tool install` / `uvx`), never pip/npm-global where a Python tool exists
@@ -21,6 +22,7 @@ The config is already ~70% there. This spec closes the specific gaps without dis
 ## Objective
 
 When complete:
+
 1. Python uses **basedpyright** (LSP, installed via `uv tool install basedpyright`) + **ruff** (format+lint via null-ls) + **pytest** (neotest/dap — already wired).
 2. DevOps files highlight and, where a server exists, get LSP: YAML (yamlls), JSON (jsonls, new), TOML (taplo), Dockerfile (dockerls), shell (bashls), XML/`.plist` (treesitter only), `.ini`/systemd/`~/.ssh/config` (treesitter highlighting via parser aliases).
 3. `make docker-test` proves the config loads and all servers/tools are present in the container.
@@ -29,7 +31,7 @@ When complete:
 ## Design Decisions (confirmed with user)
 
 | Decision | Choice |
-|---|---|
+| --- | --- |
 | XML / `.plist` support | **Builtin syntax highlighting**, **no lemminx / no Java**. (The nvim-0.9 treesitter pin has no `xml`/`ssh_config` parser, so these use Neovim's builtin `syntax/*.vim` — discovered during the build; outcome is identical for the user: highlighting, no Java.) |
 | Python LSP | **Replace pyright fully with basedpyright**, installed via `uv tool install basedpyright` |
 | Config validation | **testinfra** (pytest + pytest-testinfra) against the running Docker container; keep plenary Lua tests |
@@ -39,6 +41,7 @@ When complete:
 ## Relevant Files
 
 Live files to modify:
+
 - `config.lua` — LSP skip list, treesitter `ensure_installed`, filetype + treesitter-parser aliases, plugin list. Entry point.
 - `ftplugin/python.lua` — rewrite pyright → **basedpyright** (with manual-registration fallback).
 - `ftplugin/json.lua` — **new**: jsonls setup + SchemaStore.
@@ -49,6 +52,7 @@ Live files to modify:
 - `lsp-settings/` — add `basedpyright.json`, remove `pyright.json` (cosmetic; nlsp-settings).
 
 ### New Files
+
 - `pyproject.toml` — uv project; dev group = `pytest`, `pytest-testinfra`; pytest `testpaths`.
 - `tests/testinfra/conftest.py` — build/run the Docker image, expose a `testinfra` host fixture, tear down.
 - `tests/testinfra/test_binaries.py` — assert nvim/lvim, uv/uvx, ruff, basedpyright, and Mason LSP binaries exist.
@@ -60,20 +64,26 @@ Live files to modify:
 ## Implementation Phases
 
 ### Phase 1: Language servers & filetypes (Lua config)
+
 Swap pyright→basedpyright, add jsonls, add `xml` parser, wire devops filetypes to parsers.
 
 ### Phase 2: Provisioning (uv / Mason / Docker)
+
 Make basedpyright/ruff install via uv; make Docker install every referenced server + parser so the image is a faithful test target.
 
 ### Phase 3: Testing (testinfra) & health check
+
 Add the uv project + testinfra suite + Makefile target + CI job; update `doctor.py`.
 
 ## Step by Step Tasks
+
 Execute in order, top to bottom.
 
 ### 1. Rewrite `ftplugin/python.lua` for basedpyright
+
 - Keep the existing uv `.venv` root-detection logic (`root_files`, `.venv/bin/python`).
 - Replace the server name and settings:
+
   ```lua
   local opts = {
     root_dir = get_root_dir,
@@ -91,7 +101,9 @@ Execute in order, top to bottom.
     },
   }
   ```
+
 - **Manual-registration fallback** (LunarVim's pinned lspconfig may predate basedpyright):
+
   ```lua
   local configs = require "lspconfig.configs"
   local lspconfig = require "lspconfig"
@@ -109,12 +121,16 @@ Execute in order, top to bottom.
   ```
 
 ### 2. Update `config.lua`
+
 - **Skip list**: replace `"pyright"` with `"basedpyright"`; add `"jsonls"`:
+
   ```lua
   vim.list_extend(lvim.lsp.automatic_configuration.skipped_servers, { "basedpyright", "bashls", "jsonls" })
   ```
+
 - **Treesitter**: the nvim-0.9 pin has no `xml`/`ssh_config` parser, so do NOT add them; also drop the pre-existing (never-installable) `ssh_config` entry. The `ini` parser (available) covers `.ini`/systemd/dosini via the aliases below.
 - **DevOps filetype + parser aliases** — add near the existing `vim.filetype.add` block:
+
   ```lua
   vim.filetype.add {
     extension = {
@@ -131,10 +147,12 @@ Execute in order, top to bottom.
   pcall(vim.treesitter.language.register, "ini", "dosini")
   pcall(vim.treesitter.language.register, "ini", "systemd")
   ```
+
   (`.plist` and systemd units are already detected by nvim's builtin ftdetect; the explicit block makes behavior deterministic and testable.)
 - **Plugins**: add `{ "b0o/schemastore.nvim" }` to `lvim.plugins` (used by jsonls/yamlls).
 
 ### 3. Add `ftplugin/json.lua` (new)
+
 ```lua
 local ok, schemastore = pcall(require, "schemastore")
 local opts = {
@@ -150,36 +168,48 @@ vim.opt_local.tabstop = 2
 vim.opt_local.shiftwidth = 2
 vim.opt_local.expandtab = true
 ```
+
 - Optionally wire `yamlls` to `schemastore.yaml.schemas()` in `ftplugin/yaml.lua` (keep existing k8s mappings). Low priority.
 
 ### 4. Update `lsp-settings/`
+
 - Add `lsp-settings/basedpyright.json` mirroring the analysis defaults; delete `lsp-settings/pyright.json`.
 
 ### 5. Update `Dockerfile`
+
 - MasonInstall line: drop `pyright`, add the servers the ftplugins actually use:
-  ```
+
+  ```text
   MasonInstall bash-language-server yaml-language-server json-lsp taplo \
     dockerfile-language-server shellcheck shfmt debugpy stylua lua-language-server
   ```
+
 - Add global Python tools via uv (uv/uvx already in the image, `/root/.local/bin` on PATH):
+
   ```dockerfile
   RUN uv tool install basedpyright && uv tool install ruff
   ```
+
 - **Reliable plugin install** — replace `+"Lazy! sync" +qa` (which does not block until
   headless clones finish, leaving snacks/null-ls/neotest half-installed) with a blocking sync:
+
   ```dockerfile
   RUN /root/.local/bin/lvim --headless \
     -c "lua require('lazy').sync({ wait = true, show = false })" -c "qa" 2>&1 || true
   ```
+
 - Compile only parsers that exist in the pin (no `xml`/`ssh_config`):
+
   ```dockerfile
   RUN /root/.local/bin/lvim --headless \
     +"TSInstallSync bash python lua json jsonc yaml toml ini dockerfile" +qa 2>&1 || true
   ```
 
 ### 6. Update `Makefile`
+
 - `uv-tool-install`: add `uv tool install basedpyright` (keep `ruff`).
 - Add targets:
+
   ```make
   test-testinfra: docker-build ## Run testinfra suite against the Docker image
   	uv run pytest tests/testinfra -v
@@ -188,7 +218,9 @@ vim.opt_local.expandtab = true
   ```
 
 ### 7. Add uv project + testinfra suite (new files)
+
 - `pyproject.toml`:
+
   ```toml
   [project]
   name = "lunarvim-config-tests"
@@ -201,18 +233,22 @@ vim.opt_local.expandtab = true
   [tool.pytest.ini_options]
   testpaths = ["tests/testinfra"]
   ```
+
 - `tests/testinfra/conftest.py`: session-scoped fixture that runs the prebuilt image detached (`docker run -d --rm lunarvim-config:test sleep infinity`), yields `testinfra.get_host(f"docker://{cid}")`, and stops it in teardown. Assumes `make docker-build`/`docker-build` dependency already built `lunarvim-config:test`.
 - `test_binaries.py`: assert present — `nvim`, `~/.local/bin/lvim`, `uv`, `uvx`, `ruff`, `basedpyright` (uv tools bin), and Mason bins for `bash-language-server`, `yaml-language-server`, `taplo`, `dockerfile-language-server`, plus a json-lsp bin (`vscode-json-language-server`). Use `host.exists(...)` / `host.file(path).exists`.
 - `test_config_load.py`: run `lvim --headless -c "lua print('config loaded ok')" -c q` → assert `rc == 0` and `config loaded ok` in output; second run asserts `pcall(require,'snacks')` is `true`.
 - `test_filetypes.py`: for each of a `.plist`, a `.service`, a `.ssh/config`, a `.ini`, a `.yaml`, a `.json` file, run headless lua to write the file, `:edit` it, and print `&filetype`; assert expected filetype (`xml`, `systemd`, `sshconfig`, `dosini`, `yaml`, `json`). Also assert parser `.so` files exist under the LunarVim treesitter parser dir (at least `xml`, `ssh_config`, `ini`).
 
 ### 8. Update `script/doctor.py`
+
 - In the required binaries/Mason/uv-tool check lists: **add** `basedpyright` (uv tool), `yaml-language-server`, `json-lsp`/`vscode-json-language-server`, `taplo`, `dockerfile-language-server`; **remove** `pyright`. Keep `ruff`, `shellcheck`, `shfmt`, `bash-language-server`, `stylua`, `lua-language-server`, `debugpy`.
 
 ### 9. Add CI job in `.github/workflows/test.yml`
+
 - New job `testinfra`: checkout → `astral-sh/setup-uv@v4` → `docker build -t lunarvim-config:test .` → `uv run pytest tests/testinfra -v` (timeout ~15 min). Keep existing `install-doctor` and `plenary-tests` jobs.
 
 ### 10. Validate end-to-end
+
 - Run the Validation Commands below; all must pass.
 
 ## Testing Strategy

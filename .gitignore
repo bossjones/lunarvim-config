@@ -684,6 +684,15 @@ tools/labeling/ml_backend/.claude/data
 ls-export.zip
 ls_export.zip
 runs
+.boss-skills/
+
+# lychee link-checker: generated summary report and request cache (see lychee.toml,
+# `make link-check`). Neither should be committed.
+.lychee-report.md
+.lycheecache
+
+# Smoke-test fixtures are a committed corpus; re-include them despite the broad
+# ignore patterns above (*.log, __pycache__, etc.).
 !tests/smoke/
 !tests/smoke/fixtures/
 !tests/smoke/fixtures/log/

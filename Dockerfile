@@ -44,9 +44,9 @@ RUN pip3 install pynvim \
 # Install LunarVim (deps already installed above)
 RUN mkdir -p /root/.local/bin \
     && curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
-       https://raw.githubusercontent.com/LunarVim/LunarVim/release-1.3/neovim-0.9/utils/installer/install.sh \
+       https://raw.githubusercontent.com/LunarVim/LunarVim/release-1.4/neovim-0.9/utils/installer/install.sh \
        -o /tmp/install-lvim.sh \
-    && LV_BRANCH='release-1.3/neovim-0.9' bash /tmp/install-lvim.sh -y \
+    && LV_BRANCH='release-1.4/neovim-0.9' bash /tmp/install-lvim.sh -y \
     && rm /tmp/install-lvim.sh
 
 # Install luacheck
@@ -64,7 +64,7 @@ RUN for item in Makefile config.lua lsp-settings ftplugin README.md after .vale 
     done
 
 # Install plugins headlessly.
-# 1. LunarVim 1.3's first-time setup leaves a dead `null-ls.nvim.cloning` behind
+# 1. LunarVim's first-time setup leaves a dead `null-ls.nvim.cloning` behind
 #    (the pinned jose-elias-alvarez/null-ls.nvim repo was deleted upstream); config.lua
 #    disables it and installs the nvimtools/none-ls fork instead. Remove the stale
 #    half-clone so the plugin dir is clean.
@@ -87,6 +87,19 @@ RUN uv tool install basedpyright && uv tool install ruff
 RUN /root/.local/bin/lvim --headless \
     +"MasonInstall ansible-language-server bash-language-server yaml-language-server json-lsp taplo dockerfile-language-server shellcheck shfmt debugpy stylua lua-language-server" +q 2>&1 \
     || true
+
+# Apply the `commit` pins config.lua sets on top of LunarVim's snapshot pins.
+#
+# This MUST run after MasonInstall. The `lazy.sync` above happens while Mason has no
+# packages, so config.lua's manual bashls setup dies on 'Cannot find package
+# "bash-language-server"'. That aborts config.lua before it assigns `lvim.plugins`, so
+# lazy only ever sees LunarVim's core specs and resolves none-ls to the snapshot pin
+# (3a48266) -- the revision that crashes on Neovim 0.11. Once Mason is populated,
+# config.lua loads cleanly, its none-ls `commit` shadows the snapshot pin, and this
+# update pass checks it out. tests/testinfra asserts the result.
+RUN /root/.local/bin/lvim --headless \
+    -c "lua require('lazy.manage').update({ wait = true, show = false })" \
+    -c "lua require('lazy.manage.lock').update()" -c "qa" 2>&1 || true
 
 # Regenerate LunarVim's per-filetype LSP templates against the SYNCED config.
 # LunarVim generates them during install with its default skip list (which does

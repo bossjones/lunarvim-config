@@ -1,4 +1,10 @@
-.PHONY: help backup sync deploy smoke deploy-smoke ubuntu ubuntu-64-bit macos-arm64 evals bootstrap doctor install uv-tool-install npm-tool-install brew-tool-install go-tool-install luarocks-tool-install gem-tool-install copy-configs mason-tool-install test test-unit test-testinfra test-all docker-build docker-test docker-lint docker-shell e2e
+.PHONY: help backup sync deploy install-lunarvim plugins-update plugins-restore link-check link-check-verbose smoke deploy-smoke e2e ubuntu ubuntu-64-bit macos-arm64 evals bootstrap doctor install uv-tool-install npm-tool-install brew-tool-install go-tool-install luarocks-tool-install gem-tool-install copy-configs mason-tool-install test test-unit test-testinfra test-all docker-build docker-test docker-lint docker-shell
+
+# LunarVim release branch this config targets. Single source of truth for
+# `make install-lunarvim`; bump it when moving to a new upstream release (see
+# https://www.lunarvim.org/docs/installation). The Dockerfile and the GitHub
+# Actions workflows carry the same literal — keep all three in step.
+LV_BRANCH ?= release-1.4/neovim-0.9
 
 help: ## Show this help message
 	@uv run python -c "import re; \
@@ -36,10 +42,65 @@ sync: backup ## Sync config files from this repo to ~/.config/lvim/
 deploy: ## Install config to ~/.config/lvim via the Python installer (make deploy ARGS=--dry-run)
 	@uv run script/install.py $(ARGS)
 
+install-lunarvim: ## Install LunarVim itself via its official installer (bump LV_BRANCH for a new version)
+	curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+	  https://raw.githubusercontent.com/LunarVim/LunarVim/$(LV_BRANCH)/utils/installer/install.sh \
+	  -o /tmp/lvim-install.sh
+	LV_BRANCH='$(LV_BRANCH)' bash /tmp/lvim-install.sh --install-dependencies -y
+	rm -f /tmp/lvim-install.sh
+
+link-check: ## Check every markdown link with lychee (see lychee.toml)
+	@echo "🔗 Checking markdown links with lychee"
+	@GITHUB_TOKEN="$${GITHUB_TOKEN:-$$(gh auth token 2>/dev/null)}" lychee --config lychee.toml '**/*.md'
+
+link-check-verbose: ## Same as link-check, but with debug-level lychee output
+	@echo "🔗 Checking markdown links with lychee (verbose)"
+	@GITHUB_TOKEN="$${GITHUB_TOKEN:-$$(gh auth token 2>/dev/null)}" lychee --config lychee.toml --verbose '**/*.md'
+
 smoke: ## Smoke-test the deployed config with the active local LunarVim
 	@uv run script/smoke.py --mode smoke $(ARGS)
 
 deploy-smoke: deploy smoke ## Deploy and smoke-test the active system
+
+plugins-update: ## Update every Lazy-managed plugin past LunarVim's snapshot pins (see README - can break LunarVim)
+	@set -eu; \
+	cfg="$$HOME/.config/lvim/config.lua"; \
+	lazy_dir="$$HOME/.local/share/lunarvim/site/pack/lazy/opt/lazy.nvim"; \
+	lock="$$HOME/.config/lvim/lazy-lock.json"; \
+	test -f "$$cfg" || { \
+		echo "No deployed config at $$cfg - run 'make deploy' first."; exit 1; \
+	}; \
+	test -d "$$lazy_dir/.git" || { \
+		echo "lazy.nvim is not installed - launch 'lvim' once first."; exit 1; \
+	}; \
+	if [ -f "$$lock" ]; then \
+		backup="$$lock.bak.$$(date +%Y%m%d-%H%M%S)"; \
+		cp -p "$$lock" "$$backup"; \
+		echo "Backed up lockfile to $$backup"; \
+	fi
+	LVIM_DEV_MODE=1 lvim --headless \
+		-c "luafile $(CURDIR)/script/lazy_update.lua" \
+		-c "qa!"
+
+plugins-restore: ## Return every plugin to LunarVim's snapshot pins (config.lua `commit` pins are kept)
+	@set -eu; \
+	cfg="$$HOME/.config/lvim/config.lua"; \
+	lazy_dir="$$HOME/.local/share/lunarvim/site/pack/lazy/opt/lazy.nvim"; \
+	lock="$$HOME/.config/lvim/lazy-lock.json"; \
+	test -f "$$cfg" || { \
+		echo "No deployed config at $$cfg - run 'make deploy' first."; exit 1; \
+	}; \
+	test -d "$$lazy_dir/.git" || { \
+		echo "lazy.nvim is not installed - launch 'lvim' once first."; exit 1; \
+	}; \
+	if [ -f "$$lock" ]; then \
+		backup="$$lock.bak.$$(date +%Y%m%d-%H%M%S)"; \
+		cp -p "$$lock" "$$backup"; \
+		echo "Backed up lockfile to $$backup"; \
+	fi
+	lvim --headless \
+		-c "luafile $(CURDIR)/script/lazy_update.lua" \
+		-c "qa!"
 
 ubuntu: ## Install linters and formatters on Ubuntu (arm64)
 	sudo apt install luarocks -y

@@ -37,7 +37,7 @@ jobs:
         run: shellcheck bootstrap.sh
 
       - name: Run markdownlint
-        run: markdownlint README.md
+        run: markdownlint README.md CLAUDE.md 'specs/**/*.md' 'docs/**/*.md'
 
   lvim-headless:
     name: LunarVim headless config load
@@ -64,9 +64,9 @@ jobs:
       - name: Install LunarVim
         run: |
           curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
-            https://raw.githubusercontent.com/LunarVim/LunarVim/release-1.3/neovim-0.9/utils/installer/install.sh \
+            https://raw.githubusercontent.com/LunarVim/LunarVim/release-1.4/neovim-0.9/utils/installer/install.sh \
             -o /tmp/lvim-install.sh
-          LV_BRANCH='release-1.3/neovim-0.9' bash /tmp/lvim-install.sh --install-dependencies -y
+          LV_BRANCH='release-1.4/neovim-0.9' bash /tmp/lvim-install.sh --install-dependencies -y
           rm -f /tmp/lvim-install.sh
 
       - name: Sync config

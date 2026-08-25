@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Overview
 
 This is a LunarVim configuration repository — a customized Neovim setup built on
-top of [LunarVim](https://www.lunarvim.org/) (`release-1.3/neovim-0.9` branch). It
+top of [LunarVim](https://www.lunarvim.org/) (`release-1.4/neovim-0.9` branch). It
 is a personal config that gets deployed to `~/.config/lvim/`.
 
 > **Neovim version duality (important):** the LunarVim branch pins **Neovim 0.9**,
@@ -39,6 +39,10 @@ the `tabnine`/`harpoon`/`neoclip` toggles live only in that dormant tree and are
 ## Setup / deploy
 
 ```bash
+# Install LunarVim itself via its official installer (single-source LV_BRANCH in the
+# Makefile; bump it for a new upstream release — https://www.lunarvim.org/docs/installation)
+make install-lunarvim
+
 # Full bootstrap (installs LunarVim + dependencies)
 make bootstrap            # or ./bootstrap.sh
 
@@ -59,6 +63,13 @@ make mason-tool-install
 
 # Health check
 make doctor               # uv run script/doctor.py
+
+# Plugin version management (see README "Versions and updating LunarVim itself")
+make plugins-update       # move every Lazy plugin past LunarVim's snapshot pins (can break 1.4!)
+make plugins-restore      # put every plugin back on LunarVim's snapshot pins
+
+# Verify every markdown link with lychee (config: lychee.toml)
+make link-check
 ```
 
 ## What `config.lua` actually contains
@@ -120,13 +131,19 @@ make doctor               # uv run script/doctor.py
 
 ```bash
 make test            # plenary Lua specs (headless; needs plenary at $PLENARY_PATH or /tmp/plenary.nvim)
-make test-unit       # fast Python unit tests (pytest)
-make test-testinfra  # testinfra suite against the Docker image
+make test-unit       # fast Python unit tests (pytest) — includes tests/unit/test_doctor.py
+make test-testinfra  # testinfra suite (incl. tests/testinfra/test_config_load.py) vs the Docker image
 make docker-lint     # luacheck inside Docker (use this if local luacheck is broken)
+make link-check      # lychee over every markdown file (config: lychee.toml)
 make smoke           # active-system post-deploy smoke suite; missing local tools are reported as skips
 make deploy-smoke    # deploy then run the active-system smoke suite
 make e2e             # strict Docker smoke suite for Neovim 0.9.5; intentionally nonzero at baseline
 ```
+
+`script/doctor.py` also reports the installed Neovim version, the LunarVim branch/tag,
+and none-ls pin drift (`EXPECTED_LVIM_BRANCH = release-1.4/neovim-0.9`); `tests/unit/
+test_doctor.py` covers that logic. The [smoke-test plan](specs/smoke-test.md) documents the
+manual + automated checks that keep the config working on both Neovim 0.9 and 0.11.
 
 ### Smoke feedback loop
 
@@ -169,6 +186,21 @@ blocking `test-all` and CI wiring. It must not use `continue-on-error`.
 - **Local `luacheck` can be broken** (luarocks Lua-version loader errors); use
   `make docker-lint` for a reliable lint. For quick Lua checks:
   `luajit -bl <file> /dev/null` (parse) and `stylua --check <file>`.
+- **`none-ls` is pinned in `config.lua` on purpose.** LunarVim's
+  [`snapshots/default.json`](https://github.com/LunarVim/LunarVim/blob/release-1.4/neovim-0.9/snapshots/default.json)
+  stamps a 2023 SHA (`3a48266`) onto [none-ls](https://github.com/nvimtools/none-ls.nvim)
+  that crashes on Neovim 0.11 (`lsp._request_name_to_capability` moved to
+  `vim.lsp.protocol.*`). `config.lua` sets a newer `commit` that shadows the snapshot pin
+  (lazy's `Spec:merge` lets our spec win). **Bump it by hand**, not with `:Lazy update` —
+  and run `make plugins-update` to check it out. `make doctor` flags any drift between the
+  pinned SHA and the installed checkout.
+- **`make plugins-update` can (and on a 1.4 install does) break LunarVim.** A full update
+  pulls in `mason-lspconfig` v2, which dropped the `mappings.server` module `lvim/lsp/
+  manager.lua` needs. Recover with `make plugins-restore`. See the README for the full
+  mechanism.
+- **The `1.3 → 1.4` branch string lives in three literals** — `Dockerfile`, both
+  `.github/workflows/*.yml`, and the `LV_BRANCH` var in the `Makefile` (`doctor.py`'s
+  `EXPECTED_LVIM_BRANCH` too). Keep them in step when moving to a new release.
 
 ## Linting/Formatting tool inventory
 
@@ -182,6 +214,11 @@ Installed via `make macos-arm64` / `make ubuntu*` / the `*-tool-install` targets
 - **JS/TS**: `typescript-language-server`, `prettierd`, `eslint_d`
 - **Ruby**: `solargraph`, `rubocop`
 - **Ansible/YAML**: `ansible-language-server`, `ansible-lint`, `yamllint`
-- **Markdown**: `vale`, `markdownlint-cli` · **Docker**: `hadolint` · **Shell**: `shellcheck`, `shfmt` · **Vim**: `vim-vint`
+- **Markdown**: `vale`, `markdownlint-cli`, [`lychee`](https://github.com/lycheeverse/lychee) (link-checker, `make link-check`) · **Docker**: `hadolint` · **Shell**: `shellcheck`, `shfmt` · **Vim**: `vim-vint`
 
 Vale config: copy `vale_config.ini` to `~/.vale.ini` and `~/.config/vale/`.
+
+Link checking runs in CI on every push/PR via
+[`.github/workflows/links.yml`](.github/workflows/links.yml); rules live in
+[`lychee.toml`](lychee.toml). The generated `.lychee-report.md` and `.lycheecache` are
+git-ignored.

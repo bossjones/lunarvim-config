@@ -1,7 +1,7 @@
 # lunarvim-config
 
 A highly customized [LunarVim](https://www.lunarvim.org/) setup (built on the
-`release-1.3/neovim-0.9` branch) that deploys to `~/.config/lvim/`.
+`release-1.4/neovim-0.9` branch) that deploys to `~/.config/lvim/`.
 
 Inspired by <https://github.com/abzcoding/lvim/tree/main>
 
@@ -12,7 +12,7 @@ Inspired by <https://github.com/abzcoding/lvim/tree/main>
 Per the [LunarVim install docs](https://www.lunarvim.org/docs/installation), you need
 **Neovim v0.9.0+**, plus Git, Make, Python/pip, Node/npm, Cargo, and Ripgrep.
 
-> **Neovim 0.9.0+ is a minimum, not a ceiling.** LunarVim 1.3 only *locks new installs to
+> **Neovim 0.9.0+ is a minimum, not a ceiling.** LunarVim 1.4 only *locks new installs to
 > nvim 0.9+* — newer Neovim (0.10 / 0.11) works too. This config is used daily on 0.11.x.
 > The few 0.9-specific bits (e.g. the snacks notifier in `config.lua`) are *defensively
 > disabled* on newer Neovim rather than being hard failures.
@@ -31,16 +31,24 @@ brew install neovim git make node ripgrep luarocks hadolint vale golangci-lint
 git clone https://github.com/bossjones/lunarvim-config.git
 cd lunarvim-config
 
-# 1. Install LunarVim itself (release-1.3/neovim-0.9 branch), if not already installed:
+# 1. Install LunarVim itself (release-1.4/neovim-0.9 branch), if not already installed.
+#    Easiest path — wraps the official installer and is the single place to bump the
+#    version (edit LV_BRANCH in the Makefile; see the LunarVim install docs:
+#    https://www.lunarvim.org/docs/installation ):
+make install-lunarvim
+#
+#    …or run the underlying installer by hand:
 curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
-  https://raw.githubusercontent.com/LunarVim/LunarVim/release-1.3/neovim-0.9/utils/installer/install.sh \
+  https://raw.githubusercontent.com/LunarVim/LunarVim/release-1.4/neovim-0.9/utils/installer/install.sh \
   -o /tmp/lvim-install.sh
-LV_BRANCH='release-1.3/neovim-0.9' bash /tmp/lvim-install.sh --install-dependencies -y
+LV_BRANCH='release-1.4/neovim-0.9' bash /tmp/lvim-install.sh --install-dependencies -y
 
 # 2. Deploy this config to ~/.config/lvim (zip-backs-up + moves the old config aside).
 #    Preview the diff first, then apply:
 make deploy ARGS=--dry-run
 make deploy
+#    (config.lua pins none-ls itself, so no plugin update is needed here;
+#     see 'make plugins-update' below before running it.)
 
 # 3. Install linters, formatters, and LSP servers
 #    (uv + npm + brew + go + luarocks + Mason; no sudo, brew step is skipped if absent):
@@ -56,6 +64,49 @@ lvim
 - **`make deploy`** (backend: `script/install.py`) backs up + moves the old config aside +
   copies the payload, and supports `--dry-run`. Prefer it over `make sync`, which is a plain
   `cp -av` that overwrites in place (and even copies `.git`).
+- **`make plugins-update`** updates every Lazy-managed plugin past LunarVim's pins.
+  LunarVim stamps a pinned SHA from its
+  [`snapshots/default.json`](https://github.com/LunarVim/LunarVim/blob/release-1.4/neovim-0.9/snapshots/default.json)
+  onto every core plugin, and [lazy.nvim](https://github.com/folke/lazy.nvim)'s
+  [`Git.get_target()`](https://github.com/folke/lazy.nvim/blob/main/lua/lazy/manage/git.lua)
+  honors `plugin.commit` ahead of any branch or tag — so `:Lazy sync`, `:Lazy update`, and
+  deleting `lazy-lock.json` all just re-checkout the 2023 revisions. This target sets
+  `LVIM_DEV_MODE=1` (LunarVim's own switch for skipping that stamping) and runs
+  [`script/lazy_update.lua`](./script/lazy_update.lua). It prints every plugin it moved and
+  **never touches a plugin with local changes** — lazy's `git.status` task aborts that
+  plugin's pipeline before checkout, and the target reports each one as `SKIPPED` and exits
+  non-zero.
+
+  > **This can break LunarVim, and on a 1.4 install it currently does.**
+  > [LunarVim 1.4](https://github.com/LunarVim/LunarVim/tree/release-1.4/neovim-0.9) is
+  > dormant ([last release May 2024](https://github.com/LunarVim/LunarVim/releases)) and its
+  > core code depends on the plugin APIs it pins. A full update pulls in
+  > [`mason-lspconfig`](https://github.com/mason-org/mason-lspconfig.nvim) v2, which
+  > [dropped the `mappings.server` module](https://github.com/mason-org/mason-lspconfig.nvim/releases/tag/v2.0.0)
+  > that [`lvim/lsp/manager.lua`](https://github.com/LunarVim/LunarVim/blob/release-1.4/neovim-0.9/lua/lvim/lsp/manager.lua)
+  > requires — every LSP server then fails to attach. Use this target deliberately, and
+  > expect to run `make plugins-restore` after.
+
+- **`make plugins-restore`** puts every plugin back on LunarVim's snapshot pins — the
+  reliable way out of a bad `make plugins-update`. It runs the same update *without*
+  `LVIM_DEV_MODE`, so the pins apply again. `commit` pins written in `config.lua` (such as
+  none-ls) are ours and survive both directions; bump those by hand.
+
+  Prefer this over restoring a `lazy-lock.json` backup: `make deploy` replaces the whole of
+  `~/.config/lvim/`, so the lockfile does not survive a deploy and may not exist when you
+  need it.
+
+  > **`:LvimUpdate` and `:LvimSyncCorePlugins` do the same thing implicitly.** The
+  > [LunarVim docs](https://www.lunarvim.org/docs/configuration/plugins/core-plugins)
+  > describe `:LvimSyncCorePlugins` as syncing core plugins "to their latest versions",
+  > but [`lvim/plugin-loader.lua`](https://github.com/LunarVim/LunarVim/blob/release-1.4/neovim-0.9/lua/lvim/plugin-loader.lua)
+  > calls `lazy.update{ plugins = core_plugins }`, which honors the snapshot pins — and
+  > [`lvim/utils/hooks.lua`](https://github.com/LunarVim/LunarVim/blob/release-1.4/neovim-0.9/lua/lvim/utils/hooks.lua)
+  > runs it after every `:LvimUpdate`.
+
+- **`make deploy` never updates plugins.** Plugins live in
+  `~/.local/share/lunarvim/site/pack/lazy/opt/`, which `script/install.py` neither reads nor
+  writes; deploy only replaces the contents of `~/.config/lvim/`.
 - **`make install`** uses `uv tool` (no global `pip`, no `sudo luarocks`) and guards the brew
   step — it's the portable successor to `make macos-arm64`, which still exists as a legacy
   one-shot (uses `sudo luarocks install luacheck`, `cargo install selene`, and global `pip`).
@@ -65,6 +116,48 @@ lvim
   paths. Use the steps above instead.
 
 Run `make help` to see all available targets.
+
+### Versions and updating LunarVim itself
+
+[`make doctor`](./script/doctor.py) reports the installed Neovim version, the LunarVim
+branch/tag, and whether the checked-out [none-ls](https://github.com/nvimtools/none-ls.nvim)
+matches the `commit` pinned in [`config.lua`](./config.lua) (a mismatch means
+`make plugins-update` has not been run since the pin changed). That pin exists because
+LunarVim's snapshot revision of none-ls calls `lsp._request_name_to_capability`, which
+[Neovim 0.11 moved](https://github.com/neovim/neovim/blob/master/runtime/lua/vim/lsp/protocol.lua)
+to `vim.lsp.protocol._request_name_to_capability` — so the old pin throws on every LSP
+attach. See the inline comment on the none-ls spec in `config.lua` for the full story.
+
+This repo targets **`release-1.4/neovim-0.9`**, which
+[LunarVim documents](https://www.lunarvim.org/docs/installation) as the Neovim 0.9.5
+branch — `master` requires 0.10+. The config itself must keep working on both 0.9 and 0.11
+(see the [smoke-test plan](./specs/smoke-test.md) for how that is verified).
+
+| Command | What it does |
+| --- | --- |
+| [`make install-lunarvim`](./Makefile) | Install LunarVim via its official installer (bump `LV_BRANCH`) |
+| [`make doctor`](./script/doctor.py) | Report installed Neovim/LunarVim versions and none-ls drift |
+| `lvim +LvimVersion +q` | Print the LunarVim version |
+| `:LvimUpdate` / `lvim +LvimUpdate +q` | Update LunarVim itself (**re-pins plugins**) |
+| `:LvimSyncCorePlugins` | Reset core plugins to LunarVim's snapshot pins |
+| `make plugins-update` | Update every Lazy-managed plugin past those pins |
+| `make plugins-restore` | Put every plugin back on LunarVim's snapshot pins |
+
+### Checking documentation links
+
+Every markdown link in this repo is verified with
+[lychee](https://github.com/lycheeverse/lychee) (config in [`lychee.toml`](./lychee.toml)):
+
+```bash
+make link-check          # check every **/*.md link
+make link-check-verbose  # same, with debug output
+```
+
+`make link-check` passes a `GITHUB_TOKEN` (falling back to `gh auth token`) so lychee uses
+the GitHub API instead of scraping HTML, avoiding rate-limit false failures. The same check
+runs in CI on every push and pull request via
+[`.github/workflows/links.yml`](./.github/workflows/links.yml); the generated
+`.lychee-report.md` and `.lycheecache` are git-ignored.
 
 ## Structure
 
